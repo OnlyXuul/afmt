@@ -4,7 +4,7 @@ Odin printing library that supports ANSI for color and attributes. The goal is t
 License
 https://github.com/odin-lang/Odin/blob/master/LICENSE
 
-afmt (a for ansi) is designed to be used as a collection. If you already have a collection folder created for Odin, create an "afmt" folder inside that. Place afmt.odin in the root of that folder. Then inside the "afmt" folder, create an "examples" folder. Places the examples.odin file inside the "examples" folder. 
+afmt (a for ansi) is designed to be used as a collection. If you already have a collection folder created for Odin, create an "afmt" folder inside that. Place afmt.odin in the root of that folder. Then inside the "afmt" folder, create an "examples" folder. Place the examples.odin file inside the "examples" folder. 
 
 To use the library, add to the top of your project file:<br>
 import "CollectionFolder:afmt"
