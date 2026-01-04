@@ -1091,10 +1091,14 @@ print_raw_ansi_from_ansiformat :: proc(a: ANSI_Format) {
 print_raw_ansi_from_string :: proc(a: string) {
 	for r in a {
 		switch r {
+		case '\a': print("\\a")
+		case '\b': print("\\b")
 		case '\e': print("\\e")
+		case '\f': print("\\f")
 		case '\n': print("\\n")
 		case '\r': print("\\r")
 		case '\t': print("\\t")
+		case '\v': print("\\v")
 		case: print(r)
 		}
 	}
