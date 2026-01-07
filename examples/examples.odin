@@ -114,7 +114,7 @@ main :: proc() {
 	warning := afmt.tprintf("%s%s", wformat, "Warning: ", "%v")
 
 	//	Now that we generated the ansi and inserted a %v in the string,
-	//	we can use it as the print formt for any one variable given.
+	//	we can use it as the print format for any one variable given.
 	afmt.printfln(error, "This is an error message.")
 
 	afmt.printfln(warning, "This is an warning message.")
@@ -183,9 +183,9 @@ main :: proc() {
 
 	//	Don't like using the ANSI_Format struct and prefer the string method,
 	//	but want to dynamically define your ansi without string parsing or using strings.concatenate?
-	fg := afmt.fg_color_4bit[.FG_BRIGHT_MAGENTA]
-	bg := afmt.bg_color_4bit[.BG_BLACK]
-	at := afmt.tprintf("%s,%s", afmt.attribute[.ITALIC], afmt.attribute[.UNDERLINE])
+	fg := "bright_magenta"
+	bg := "black"
+	at := "italic,underline"
 	af := afmt.tprintf("-f[%s]-b[%s]-a[%s] %s", fg, bg, at, "%v")
 	afmt.println(af, "10. My dynamically created ansi format using the string method.")
 
@@ -291,18 +291,18 @@ main :: proc() {
 
 	col_label = afmt.tprintf(
 		"%s%s%s%s",
-		afmt.tprintf("%v", "-f[0,0,0]-b[167, 168, 9]-a[bold]",  "%-10s"),
-		afmt.tprintf("%v", "-f[0,0,0]-b[16, 194, 113]-a[bold]", "%-20s"),
-		afmt.tprintf("%v", "-f[0,0,0]-b[16, 141, 194]-a[bold]", "%-20s"),
-		afmt.tprintf("%v", "-f[0,0,0]-b[235, 50, 180]-a[bold]", "%-20s"),
+		afmt.tprintf("%v", "-f[0,0,0]-b[167, 168, 009]-a[bold]", "%-10s"),
+		afmt.tprintf("%v", "-f[0,0,0]-b[016, 194, 113]-a[bold]", "%-20s"),
+		afmt.tprintf("%v", "-f[0,0,0]-b[016, 141, 194]-a[bold]", "%-20s"),
+		afmt.tprintf("%v", "-f[0,0,0]-b[235, 050, 180]-a[bold]", "%-20s"),
 	)
 
 	row = afmt.tprintf(
 		"%s%s%s%s",
-		afmt.tprintf("%v", "-f[0,0,0]-b[193, 195, 10]-a[bold]", "%-10s"),
-		afmt.tprintf("%v", "-f[16, 194, 113]-b[0,0,0]",         "%-20s"),
-		afmt.tprintf("%v", "-f[16, 141, 194]-b[0,0,0]",         "%-20s"),
-		afmt.tprintf("%v", "-f[235, 50, 180]-b[0,0,0]",         "%-20s"),
+		afmt.tprintf("%v", "-f[000, 000, 000] -b[193, 195, 100] -a[bold]", "%-10s"),
+		afmt.tprintf("%v", "-f[016, 194, 113] -b[000, 000, 000]",          "%-20s"),
+		afmt.tprintf("%v", "-f[016, 141, 194] -b[000, 000, 000]",          "%-20s"),
+		afmt.tprintf("%v", "-f[235, 050, 180] -b[000, 000, 000]",          "%-20s"),
 	)
 
 	for r in 0..=10 {
