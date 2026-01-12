@@ -15,3 +15,10 @@ If you do not all ready have a collection folder created, check Odin's website f
 import "shared:afmt"
 
 See examples.odin for usage.
+
+
+// change "odin/shared" to location of your collection folder<br>
+cd odin/shared<br>
+git clone https://github.com/OnlyXuul/afmt.git<br>
+cd afmt/examples<br>
+odin run .<br>
