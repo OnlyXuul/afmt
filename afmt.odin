@@ -1,6 +1,7 @@
 package afmt //	ANSI Format printing library.
 
 import cfmt "core:fmt" // renamed "c" for core to prevent name collision with "fmt" in procedure definitions
+import "core:math"
 import "core:strings"
 import "core:strconv"
 import "core:terminal"
@@ -166,6 +167,31 @@ ANSI_24Bit :: struct {
 }
 //	RGB type for ANSI_24Bit Colors
 RGB :: distinct [3]Maybe(u8)
+
+//	Overloaded helper procedure for dealing with RGB which is [3]Maybe(u8)
+//	The nil-ability of afmt.RGB requires extra syntax for type assertion
+//	This utility provides a shorthand to reduce syntax and type assertion know-how
+//	Will convert from [3]u8 to [3]Maybe(u8) or [3]Maybe(u8) to [3]u8
+//	If [3]Maybe(u8) contains any nils, those values are set to 0
+rgb :: proc {_u8_rgb_to_rgb_maybe_u8, _rgb_maybe_u8_to_u8_rgb}
+
+//	Prefer the overloaded procedure rgb()
+//	Internal, but not private for if you wish to be explicit
+//	Converts [3]u8 to [3]Maybe(u8)
+_u8_rgb_to_rgb_maybe_u8 :: proc(rgb: [3]u8) -> RGB {
+	return {rgb.r, rgb.g, rgb.b}
+}
+
+//	Prefer the overloaded procedure rgb()
+//	Internal, but not private for if you wish to be explicit
+//	Converts [3]Maybe(u8) to [3]u8
+//	If [3]Maybe(u8) contains any nils, those values are set to 0
+_rgb_maybe_u8_to_u8_rgb :: proc(rgb: RGB) -> (_rgb: [3]u8) {
+	for c, i in rgb {
+		_rgb[i] = c.? or_else 0
+	}
+	return
+}
 //
 //	ANSI Control Sequence formatter
 //
@@ -1101,6 +1127,377 @@ print_raw_ansi_from_string :: proc(a: string) {
 		case '\v': print("\\v")
 		case: print(r)
 		}
+	}
+	println()
+}
+
+//	Convert hsl to rgb
+//
+//	Input:
+//	- hsl[0] = hue in degrees
+//	- hsl[1] = saturation (0-1) in percent where 1 == 100%
+//	- hsl[2] = luminance  (0-1) in percent where 1 == 100%
+//
+//	Input Normalization:
+//	- if hue < 0 || hue > 360 then it is converted to corresponding degree in range 0-360
+//	- if saturation < 0 || luminance < 0 then they are converted to positive respectively
+//	- if saturation > 1 || luminance > 1 then they are assumed to be 1 (i.e. 100%) respectively
+//
+//	Returns:
+//	- rgb = {0-255, 0-255, 0-255}
+hsl_rgb :: proc(hsl: [3]f64) -> (rgb: [3]u8) {
+	rnd :: math.round
+	_hsl := hsl
+
+	// No saturation, which means rgb is gray, so apply luminance and return
+	if _hsl[1] == 0 {
+		rgb = {u8(rnd(_hsl[2] * 255)), u8(rnd(_hsl[2] * 255)), u8(rnd(_hsl[2] * 255))}
+		return rgb
+	}
+
+	// Normalize input
+	if _hsl[0] < 0     { for _hsl[0] < 0   { _hsl[0] += 360 } }
+	if _hsl[0] > 360   { for _hsl[0] > 360 { _hsl[0] -= 360 } }
+	if _hsl[1] < 0     { _hsl[1] *= -1.000 }
+	if _hsl[1] > 1.000 { _hsl[1] =   1.000 }
+	if _hsl[2] < 0     { _hsl[2] *= -1.000 }
+	if _hsl[2] > 1.000 { _hsl[2] =   1.000 }
+
+	// Begin maths...
+	rgbf64 := [3]f64 {(_hsl[0]/360.000) + 0.3333333333333333, _hsl[0]/360.000, (_hsl[0]/360.000) - 0.3333333333333333}
+	sl1    := _hsl[2] < 0.500 ? _hsl[2] * (1.000 + _hsl[1]) : _hsl[2] + _hsl[1] - (_hsl[2] * _hsl[1])
+	sl2    := (2 * _hsl[2]) - sl1
+
+	for _, i in rgbf64 {
+		rgbf64[i] = rgbf64[i] < 0 ? rgbf64[i] + 1 : rgbf64[i] > 1 ? rgbf64[i] - 1 : rgbf64[i]
+		switch {
+		case 6*rgbf64[i] < 1.000: rgbf64[i] = sl2 + ((sl1 - sl2) * 6 * rgbf64[i])
+		case 2*rgbf64[i] < 1.000: rgbf64[i] = sl1
+		case 3*rgbf64[i] < 2.000: rgbf64[i] = sl2 + ((sl1 - sl2) * (0.6666666666666666 - rgbf64[i]) * 6)
+		case:                     rgbf64[i] = sl2
+		}
+	}
+
+	rgb = { u8(rnd(rgbf64.r * 255)), u8(rnd(rgbf64.g * 255)), u8(rnd(rgbf64.b * 255)) }
+	return
+}
+
+//	Convert rgb to hsl
+//
+//	Input:
+//	- rgb = {0-255, 0-255, 0-255}
+//
+//	Returns:
+//	- hsl[0] = hue (0-360) in degrees
+//	- hsl[1] = saturation (0-1) in percent where 1 == 100%
+//	- hsl[2] = luminance (0-1) in percent where 1 == 100%
+rgb_hsl :: proc(rgb: [3]u8) -> (hsl: [3]f64) {
+	// Convert rgb to 0:1 range
+	rgbf64 := [3]f64{f64(rgb.r), f64(rgb.g), f64(rgb.b)} / 255
+
+	// Find max and min with mega-trinaries - I love these. Sorry if you do not ...
+	max := rgbf64.r >= rgbf64.g ? (rgbf64.r >= rgbf64.b ? rgbf64.r : rgbf64.b) : (rgbf64.g >= rgbf64.b ? rgbf64.g : rgbf64.b)
+	min := rgbf64.r <= rgbf64.g ? (rgbf64.r <= rgbf64.b ? rgbf64.r : rgbf64.b) : (rgbf64.g <= rgbf64.b ? rgbf64.g : rgbf64.b)
+
+	// Luminance
+	hsl[2] = (max + min) / 2
+
+	// Saturation
+	switch {
+	case max == min:      hsl[1] = 0
+	case hsl[2] <= 0.500: hsl[1] = (max - min) / (max + min)
+	case:                 hsl[1] = (max - min) / (2.000 - max - min)
+	}
+
+	// Hue
+	if hsl[1] != 0 { // Hue is 0 degrees if there is no saturation (i.e. hsl[0] stays initialized as 0)
+		switch max {
+		case rgbf64.r: hsl[0] = ((rgbf64.g - rgbf64.b) / (max - min)) * 60
+		case rgbf64.g: hsl[0] = ((rgbf64.b - rgbf64.r) / (max - min) + 2.000) * 60
+		case rgbf64.b: hsl[0] = ((rgbf64.r - rgbf64.g) / (max - min) + 4.000) * 60
+		}
+		if hsl[0] < 0 { hsl[0] += 360.000 }
+	}
+
+	return
+}
+
+//	Convert hsl to rgb
+//
+//	Input:
+//	- hsl[0] = hue in degrees
+//	- hsl[1] = saturation (0-1) in percent where 1 == 100%
+//	- hsl[2] = luminance  (0-1) in percent where 1 == 100%
+//
+//	Input Normalization:
+//	- if hue < 0 || hue > 360 then it is converted to corresponding degree in range 0-360
+//	- if saturation < 0 || luminance < 0 then they are converted to positive respectively
+//	- if saturation > 1 || luminance > 1 then they are assumed to be 1 (i.e. 100%) respectively
+//
+//	Returns:
+//	- rgb = {0-5, 0-5, 0-5}
+hsl_rgb666 :: proc(hsl: [3]f64) -> (rgb: [3]u8) {
+	rnd :: math.round
+	_hsl := hsl
+
+	// No saturation, which means rgb is gray, so apply luminance and return
+	if _hsl[1] == 0 {
+		rgb = {u8(rnd(_hsl[2] * 5)), u8(rnd(_hsl[2] * 5)), u8(rnd(_hsl[2] * 5))}
+		return rgb
+	}
+
+	// Normalize input
+	if _hsl[0] < 0     { for _hsl[0] < 0   { _hsl[0] += 360 } }
+	if _hsl[0] > 360   { for _hsl[0] > 360 { _hsl[0] -= 360 } }
+	if _hsl[1] < 0     { _hsl[1] *= -1.000 }
+	if _hsl[1] > 1.000 { _hsl[1] =   1.000 }
+	if _hsl[2] < 0     { _hsl[2] *= -1.000 }
+	if _hsl[2] > 1.000 { _hsl[2] =   1.000 }
+
+	// Begin maths...
+	rgbf64 := [3]f64 {(_hsl[0]/360.000) + 0.3333333333333333, _hsl[0]/360.000, (_hsl[0]/360.000) - 0.3333333333333333}
+	sl1    := _hsl[2] < 0.500 ? _hsl[2] * (1.000 + _hsl[1]) : _hsl[2] + _hsl[1] - (_hsl[2] * _hsl[1])
+	sl2    := (2 * _hsl[2]) - sl1
+
+	for _, i in rgbf64 {
+		rgbf64[i] = rgbf64[i] < 0 ? rgbf64[i] + 1 : rgbf64[i] > 1 ? rgbf64[i] - 1 : rgbf64[i]
+		switch {
+		case 6*rgbf64[i] < 1.000: rgbf64[i] = sl2 + ((sl1 - sl2) * 6 * rgbf64[i])
+		case 2*rgbf64[i] < 1.000: rgbf64[i] = sl1
+		case 3*rgbf64[i] < 2.000: rgbf64[i] = sl2 + ((sl1 - sl2) * (0.6666666666666666 - rgbf64[i]) * 6)
+		case:                     rgbf64[i] = sl2
+		}
+	}
+
+	rgb = { u8(rnd(rgbf64.r * 5)), u8(rnd(rgbf64.g * 5)), u8(rnd(rgbf64.b * 5)) }
+	return
+}
+
+//	Convert rgb to hsl
+//
+//	Input:
+//	- rgb = {0-5, 0-5, 0-5}
+//	- values will be rolled over if greater than five (rgb = rgb % 6)
+//
+//	Returns:
+//	- hsl[0] = hue (0-360) in degrees
+//	- hsl[1] = saturation (0-1) in percent where 1 == 100%
+//	- hsl[2] = luminance (0-1) in percent where 1 == 100%
+rgb666_hsl :: proc(rgb: [3]u8) -> (hsl: [3]f64) {
+	// Max value is 5. Roll over value if above 5
+	_rgb := rgb % 6
+	// Convert rgb to 0:1 range
+	rgbf64 := [3]f64{f64(_rgb.r), f64(_rgb.g), f64(_rgb.b)} / 5
+
+	// Find max and min with mega-trinaries - I love these. Sorry if you do not ...
+	max := rgbf64.r >= rgbf64.g ? (rgbf64.r >= rgbf64.b ? rgbf64.r : rgbf64.b) : (rgbf64.g >= rgbf64.b ? rgbf64.g : rgbf64.b)
+	min := rgbf64.r <= rgbf64.g ? (rgbf64.r <= rgbf64.b ? rgbf64.r : rgbf64.b) : (rgbf64.g <= rgbf64.b ? rgbf64.g : rgbf64.b)
+
+	// Luminance
+	hsl[2] = (max + min) / 2
+
+	// Saturation
+	switch {
+	case max == min:      hsl[1] = 0
+	case hsl[2] <= 0.500: hsl[1] = (max - min) / (max + min)
+	case:                 hsl[1] = (max - min) / (2.000 - max - min)
+	}
+
+	// Hue
+	if hsl[1] != 0 { // Hue is 0 degrees if there is no saturation (i.e. hsl[0] stays initialized as 0)
+		switch max {
+		case rgbf64.r: hsl[0] = ((rgbf64.g - rgbf64.b) / (max - min)) * 60
+		case rgbf64.g: hsl[0] = ((rgbf64.b - rgbf64.r) / (max - min) + 2.000) * 60
+		case rgbf64.b: hsl[0] = ((rgbf64.r - rgbf64.g) / (max - min) + 4.000) * 60
+		}
+		if hsl[0] < 0 { hsl[0] += 360.000 }
+	}
+
+	return
+}
+
+//	Convert rgb value with range 0-5 (6x6x6 color cube) to 8bit color 16-231
+//	Excludes system colors 0-15 and grayscale 232-255
+rgb666_to_8bit :: proc(rgb666: [3]u8) -> (color: u8, ok: bool) {
+	if rgb666.r > 5 || rgb666.g > 5 || rgb666.b > 5 {
+		return 16, false // If invalid input, return black(the first color) and false
+	}
+	//	Base-6 to u8 conversion +16 since main colors are 16-231
+	return (rgb666.r * 36) + (rgb666.g * 6) + rgb666.b + 16, true
+}
+
+//	Convert 8bit color 16-231 to rgb value with range 0-5 (6x6x6 color cube)
+//	Excludes system colors 0-15 and grayscale 232-255
+rgb666_from_8bit :: proc(color: u8) -> (rgb666: [3]u8, ok: bool) {
+	_color := color
+	if color < 16 || color > 231 {
+		return {0,0,0}, false //	If invalid input, return black and false
+	}
+
+	//	6x6x6 color cube starts at 16. Normalize so first color is = {0,0,0} then treat as base 6 number
+	_color -= 16
+
+	//	After subtracting 16, 215 is the highest decimal value for a base-6, 3 digit number i.e. {5,5,5}
+	//	base-6 maths n * (6^d) + ...
+	//	where d is the digit placement from right to left starting at 0
+	//	n is the value at that digit in range 0-5
+	//	(n * (6^(2))) + (n * (6^(1))) + (n * (6^(0)))
+	//	base-6 num = 555 = (5 * 6^2) + (5 * 6^1) + (5 * 6^0) = 215
+	for i := 2; _color != 0; i -= 1 {
+		rgb666[i] = _color % 6
+		_color /= 6
+	}
+
+	return rgb666, true
+}
+
+//	Print to terminal 3Bit color test
+print_3bit_color_test :: proc(background := true) {
+	pf := ANSI_3Bit{at = {.BOLD}}
+	if background { pf.at += {.INVERT} }
+
+	println("-a[bold]", "\n3Bit Colors")
+	for c := 30; c <= 37; c += 1 {
+		pf.fg = FG_Color_3Bit(c)
+		printfln(" %-7s ", pf, fg_color_4bit[FG_Color_4Bit(c)])
+	}
+	println()
+}
+
+//	Print to terminal 4Bit color test
+print_4bit_color_test :: proc(background := true) {
+	pf := ANSI_4Bit{at = {.BOLD}}
+	if background { pf.at += {.INVERT} }
+
+	println("-a[bold]", "\n4Bit Colors")
+	for c := 30; c <= 37; c += 1 {
+		pf.fg = FG_Color_4Bit(c)
+		printf(" %-7s ", pf, fg_color_4bit[FG_Color_4Bit(c)])
+		pf.fg = FG_Color_4Bit(c + 60)
+		printfln(" %-14s ", pf, fg_color_4bit[FG_Color_4Bit(c + 60)])
+	}
+	println()
+}
+
+//	Iterate rgb 6x6x6 color wheel by input factor and print bar
+//	If factor == 0, then it is set to default 4.5 (80 colors)
+//	If factor is greater than 360, it is set to 360 (i.e. 1 color)
+print_8bit_color_spectrum_bar :: proc(factor := f64(7.5)) {
+	hsl := [3]f64{0, 1, .5}
+	f   := factor == 0 ? 4.5 : factor > 360 ? 360 : factor
+
+	pf: A8BIT
+	//println("-a[bold]", "RGB Color Spectrum Bar")
+	for hsl[0] = 0; hsl[0] <= 360 - f; hsl[0] += f {
+		rgb := hsl_rgb666(hsl)
+		pf.bg, _ = rgb666_to_8bit(rgb)
+		print(pf, " ")
+	}
+	println()
+}
+
+//	Print to terminal 8Bit color test
+print_8bit_color_test :: proc(background := true) {
+	pf := ANSI_8Bit{at = {.BOLD}}
+	if background { pf.at += {.INVERT} }
+
+	println("-a[bold]", "\n8Bit System Colors")
+	for c in 0..=15 {
+		pf.fg = u8(c)
+		p := c == 7 || c == 15 ? printfln(" %3i ", pf, c) : printf(" %3i ", pf, c)
+	}
+
+	println("-a[bold]", "\n8Bit Color Cube 6x6x6")
+	rgb: [3]u8
+	for rgb.g = 0; rgb.g < 6; rgb.g += 1 {
+		for rgb.r = 0; rgb.r < 3; rgb.r += 1 {
+			for rgb.b = 0; rgb.b < 6; rgb.b += 1 {
+				pf.fg, _ = rgb666_to_8bit(rgb)
+				p := rgb.rb != {2,5} ? printf(" %3i ", pf, pf.fg) : printfln(" %3i ", pf, pf.fg)
+			}
+		}
+	}
+	for rgb.g = 0; rgb.g < 6; rgb.g += 1 {
+		for rgb.r = 3; rgb.r < 6; rgb.r += 1 {
+			for rgb.b = 0; rgb.b < 6; rgb.b += 1 {
+				pf.fg, _ = rgb666_to_8bit(rgb)
+				p := rgb.rb != {5,5} ? printf(" %3i ", pf, pf.fg) : printfln(" %3i ", pf, pf.fg)
+			}
+		}
+	}
+
+	println("-a[bold]", "\n8Bit Grayscale")
+	for g in 232..=255 {
+		pf.fg = g <= 243 ? u8(g) : 255 - (u8(g) - 244)
+		p := g != 243 && g != 255 ? printf(" %3i ", pf, pf.fg) : printfln(" %3i ", pf, pf.fg)
+	}
+	println()
+}
+
+//	Iterate rgb color wheel by input factor and print bar
+//	If factor == 0, then it is set to default 4.5 (80 colors)
+//	If factor is greater than 360, it is set to 360 (i.e. 1 color)
+print_24bit_color_spectrum_bar :: proc(factor := f64(7.5)) {
+	hsl := [3]f64{0, 1, .5}
+	f   := factor == 0 ? 4.5 : factor > 360 ? 360 : factor
+
+	pf: A24BIT
+	//println("-a[bold]", "RGB Color Spectrum Bar")
+	for hsl[0] = 0; hsl[0] <= 360 - f; hsl[0] += f {
+		rgb := hsl_rgb(hsl)
+		pf.bg = {rgb.r, rgb.g, rgb.b}
+		print(pf, " ")
+	}
+	println()
+}
+
+//	Print to terminal 24Bit color test
+//	If factor is less than 8, then set it to 8
+//
+//	Brute force method of iterating color wheel
+//	Saving as reference for debugging hsl_rgb if needed
+//	The following should produce the same spectrum bars, respectively:
+//
+//	- afmt.print_24bit_color_spectrum_bar(30)
+//	- afmt.print_24bit_color_test(128)
+//
+//	- afmt.print_24bit_color_spectrum_bar(15)
+//	- afmt.print_24bit_color_test(64)
+//
+//	- afmt.print_24bit_color_spectrum_bar(7.5)
+//	- afmt.print_24bit_color_test(32)
+//
+//	- afmt.print_24bit_color_spectrum_bar(3.75)
+//	- afmt.print_24bit_color_test(16)
+//
+print_24bit_color_test :: proc(factor := u8(64)) {
+	pf := A24BIT{fg = {0,0,0}, at = {.INVERT}}
+	rgb: [3]int //	have to use int, for loops will type overflow on u8 when max is 255
+	f := factor < 8 ? 8 : int(factor)
+
+	for rgb = {255, 0, 0}; rgb.g <= 255; rgb.g += rgb.g == 0 ? f - 1 : f {
+		pf.fg = {u8(rgb.r), u8(rgb.g), u8(rgb.b)}
+		print(pf, " ")
+	}
+	for rgb = {255 - f, 255, 0}; rgb.r >= 0; rgb.r -= rgb.r != 0 && rgb.r < f ? rgb.r : f {
+		pf.fg = {u8(rgb.r), u8(rgb.g), u8(rgb.b)}
+		print(pf, " ")
+	}
+	for rgb = {0, 255, f - 1}; rgb.b <= 255; rgb.b += rgb.b == 0 ? f - 1 : f {
+		pf.fg = {u8(rgb.r), u8(rgb.g), u8(rgb.b)}
+		print(pf, " ")
+	}
+	for rgb = {0, 255 - f, 255}; rgb.g >= 0; rgb.g -= rgb.g != 0 && rgb.g < f ? rgb.g : f {
+		pf.fg = {u8(rgb.r), u8(rgb.g), u8(rgb.b)}
+		print(pf, " ")
+	}
+	for rgb = {f - 1, 0, 255}; rgb.r <= 255; rgb.r += rgb.r == 0 ? f - 1 : f {
+		pf.fg = {u8(rgb.r), u8(rgb.g), u8(rgb.b)}
+		print(pf, " ")
+	}
+	for rgb = {255, 0, 255 - f}; rgb.b >= f - 1; rgb.b -= rgb.b != 0 && rgb.b < f ? rgb.b : f {
+		pf.fg = {u8(rgb.r), u8(rgb.g), u8(rgb.b)}
+		print(pf, " ")
 	}
 	println()
 }
