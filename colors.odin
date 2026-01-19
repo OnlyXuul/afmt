@@ -25,25 +25,6 @@ color_name_from_enum :: proc(color: Color) -> (value: string) {
 	return
 }
 
-//	Get RGB value from color name, if there is a match
-@(require_results)
-color_value_from_name :: proc(name: string) -> (value: RGB, valid: bool) {
-	for c, e in color {
-		enum_name, _ := reflect.enum_name_from_value(e)
-		if enum_name == name {
-			return c, true
-		}
-	}
-	return {0,0,0}, false
-}
-
-//	Get RGB value from color name, if there is a match
-@(require_results)
-color_value_from_enum :: proc(c: Color) -> (value: RGB) {
-	return color[c]
-}
-
-
 print_color_name_guide :: proc(group := "all") {
 	range: [2]i16
 	switch group {
@@ -71,9 +52,9 @@ print_color_name_guide :: proc(group := "all") {
 		{width[2], .CENTER, {fg = gainsboro, bg = black + 25}},
 	}
 
-	for color, Color in color {
-		if i16(Color) < range[0] || i16(Color) > range[1] {continue}
-		switch u8(Color) {
+	for _color, _Color in color {
+		if i16(_Color) < range[0] || i16(_Color) > range[1] {continue}
+		switch u8(_Color) {
 		case 000: printrow(label, "index", " Pinks",     "R   G   B")
 		case 014: printrow(label, "index", " Purples",   "R   G   B")
 		case 022: printrow(label, "index", " Blues",     "R   G   B")
@@ -83,13 +64,13 @@ print_color_name_guide :: proc(group := "all") {
 		case 115: printrow(label, "index", " Reds",      "R   G   B")
 		case 131: printrow(label, "index", " Grayscale", "R   G   B")
 		}
-		row[0].ansi.fg = contrast_ratio(color, black) > contrast_ratio(color, white) ? black : white
-		row[0].ansi.bg = color
-		row[1].ansi.bg = u8(Color) % 2 == 0 ? black : black + 25
-		row[2].ansi.bg = u8(Color) % 2 == 0 ? black : black + 25
-		num  := tprintf("%3i", u8(Color))
-		name := tprintf(" %s", color_name_from_enum(Color))
-		rgb  := tprintf("%3i,%3i,%3i", color.r, color.g, color.b)
+		row[0].ansi.fg = contrast_ratio(_color, black) > contrast_ratio(_color, white) ? black : white
+		row[0].ansi.bg = _color
+		row[1].ansi.bg = u8(_Color) % 2 == 0 ? black : black + 25
+		row[2].ansi.bg = u8(_Color) % 2 == 0 ? black : black + 25
+		num  := tprintf("%3i", u8(_Color))
+		name := tprintf(" %s", color_name_from_enum(_Color))
+		rgb  := tprintf("%3i,%3i,%3i", _color.r, _color.g, _color.b)
 		printrow(row, num, name, rgb)
 	}
 }
