@@ -1127,8 +1127,13 @@ printrow :: proc(row: [$N]$V/Column, args: ..any) {
 		for c in 0..<N {
 			if c >= len(args) { break }
 			arg := tprint(args[c])
-			if u8(len(arg)) > row[c].width {
-				arg = arg[:row[c].width]
+			if strings.rune_count(arg) > int(row[c].width) {
+				rloop: for r, idx in arg {
+					if strings.rune_count(arg[:idx]) == int(row[c].width) {
+						arg = arg[:idx]
+						break rloop
+					}
+				}
 			}
 			switch row[c].justify {
 			case .LEFT:
