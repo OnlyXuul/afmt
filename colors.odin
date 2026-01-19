@@ -9,9 +9,6 @@ import "core:reflect"
 //	Get color name from RGB value, if there is a match.
 @(require_results)
 color_name_from_value :: proc(c: RGB) -> (value: string, valid: bool) {
-	if c.r == nil || c.g == nil || c.b == nil {
-		return "", false
-	}
 	for _c, e in color {
 		if _c == c {
 			return reflect.enum_name_from_value(e)
@@ -30,7 +27,57 @@ color_value_from_name :: proc(name: string) -> (value: RGB, valid: bool) {
 			return c, true
 		}
 	}
-	return nil, false
+	return {0,0,0}, false
+}
+
+print_color_name_guide :: proc(group := "all") {
+	range: [2]i16
+	switch group {
+	case "All",       "all":       range = {000, 139}
+	case "Pinks",     "pinks":     range = {000, 013}
+	case "Purples",   "purples":   range = {014, 021}
+	case "Blues",     "blues":     range = {022, 054}
+	case "Greens",    "greens":    range = {055, 079}
+	case "Yellows",   "yellows":   range = {080, 096}
+	case "Oranges",   "oranges":   range = {097, 114}
+	case "Reds",      "reds":      range = {115, 130}
+	case "Grayscale", "grayscale": range = {131, 139}
+	case: range = {-1, -1}
+	}
+
+	width := [3]u8 {11, 26, 13}
+	label := [3]Column(ANSI24) {
+		{width[0], .CENTER, {fg = black, bg = silver + 25, at = {.BOLD}}},
+		{width[1], .LEFT,   {fg = black, bg = silver + 40, at = {.BOLD}}},
+		{width[2], .CENTER, {fg = black, bg = silver + 25, at = {.BOLD}}},
+	}
+	row := [3]Column(ANSI24) {
+		{width[0], .CENTER, {fg = black, at = {.BOLD}}},
+		{width[1], .LEFT,   {fg = gainsboro, bg = black + 25}},
+		{width[2], .CENTER, {fg = gainsboro, bg = black + 25}},
+	}
+
+	for color, Color in color {
+		if i16(Color) < range[0] || i16(Color) > range[1] {continue}
+		switch u8(Color) {
+		case 000: printrow(label, "index", " Pinks",     "R   G   B")
+		case 014: printrow(label, "index", " Purples",   "R   G   B")
+		case 022: printrow(label, "index", " Blues",     "R   G   B")
+		case 055: printrow(label, "index", " Greens",    "R   G   B")
+		case 080: printrow(label, "index", " Yellows",   "R   G   B")
+		case 097: printrow(label, "index", " Oranges",   "R   G   B")
+		case 115: printrow(label, "index", " Reds",      "R   G   B")
+		case 131: printrow(label, "index", " Grayscale", "R   G   B")
+		}
+		row[0].ansi.fg = contrast_ratio(color, black) > contrast_ratio(color, white) ? black : white
+		row[0].ansi.bg = color
+		row[1].ansi.bg = u8(Color) % 2 == 0 ? black : black + 25
+		row[2].ansi.bg = u8(Color) % 2 == 0 ? black : black + 25
+		num  := tprintf("%3i", u8(Color))
+		name := tprintf(" %s", color_name_from_value(color) or_else "")
+		rgb  := tprintf("%3i,%3i,%3i", color.r, color.g, color.b)
+		printrow(row, num, name, rgb)
+	}
 }
 
 //	Pinks
@@ -182,7 +229,7 @@ maroon               :: RGB { 128 , 000 , 000 }
 white                :: RGB { 255 , 255 , 255 }
 whitesmoke           :: RGB { 245 , 245 , 245 }
 gainsboro            :: RGB { 220 , 220 , 220 }
-lightgrey            :: RGB { 211 , 211 , 211 }
+lightgray            :: RGB { 211 , 211 , 211 }
 silver               :: RGB { 192 , 192 , 192 }
 darkgray             :: RGB { 169 , 169 , 169 }
 gray                 :: RGB { 128 , 128 , 128 }
@@ -333,7 +380,7 @@ color := [Color]RGB {
 	.white                = white,
 	.whitesmoke           = whitesmoke,
 	.gainsboro            = gainsboro,
-	.lightgrey            = lightgrey,
+	.lightgray            = lightgray,
 	.silver               = silver,
 	.darkgray             = darkgray,
 	.gray                 = gray,
@@ -343,7 +390,7 @@ color := [Color]RGB {
 
 Color :: enum u8 {
 	//	Pinks
-	lightpink,
+	lightpink, // 0
 	pink,
 	crimson,
 	lavenderblush,
@@ -358,7 +405,7 @@ Color :: enum u8 {
 	magenta,
 	fuchsia,
 	//	Purples
-	darkmagenta,
+	darkmagenta, // 14
 	purple,
 	mediumorchid,
 	darkviolet,
@@ -367,7 +414,7 @@ Color :: enum u8 {
 	blueviolet,
 	mediumpurple,
 	//	Blues
-	mediumslateblue,
+	mediumslateblue, // 22
 	slateblue,
 	darkslateblue,
 	ghostwhite,
@@ -401,7 +448,7 @@ Color :: enum u8 {
 	teal,
 	darkslategray,
 	//	Greens
-	mediumturquoise,
+	mediumturquoise, // 55
 	lightseagreen,
 	turquoise,
 	aquamarine,
@@ -427,7 +474,7 @@ Color :: enum u8 {
 	yellowgreen,
 	olivedrab,
 	//	Yellows
-	ivory,
+	ivory, // 80
 	beige,
 	lightyellow,
 	lightgoldenrodyellow,
@@ -445,7 +492,7 @@ Color :: enum u8 {
 	oldlace,
 	wheat,
 	//Oranges
-	orange,
+	orange, // 97
 	moccasin,
 	papayawhip,
 	blanchedalmond,
@@ -464,7 +511,7 @@ Color :: enum u8 {
 	seashell,
 	sienna,
 	//	Reds
-	lightsalmon,
+	lightsalmon, // 115
 	coral,
 	orangered,
 	darksalmon,
@@ -481,13 +528,13 @@ Color :: enum u8 {
 	darkred,
 	maroon,
 	//	Grayscale
-	white,
+	white, // 131
 	whitesmoke,
 	gainsboro,
-	lightgrey,
+	lightgray,
 	silver,
 	darkgray,
 	gray,
 	dimgray,
-	black,
+	black, // 139
 }

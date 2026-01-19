@@ -6,23 +6,39 @@ import "core:strings"
 import "core:strconv"
 import "core:terminal"
 import "core:terminal/ansi"
+import "base:intrinsics"
+
+
+//	Depricated names of structures given aliases for now (temporary)
+
+
+ANSI_Format   :: ANSI
+ANSI_3Bit     :: ANSI3
+ANSI_4Bit     :: ANSI4
+ANSI_8Bit     :: ANSI8
+ANSI_24Bit    :: ANSI24
+FG_Color_3Bit :: FGColor3
+BG_Color_3Bit :: BGColor3
+FG_Color_4Bit :: FGColor4
+BG_Color_4Bit :: BGColor4
 
 //	Aliases of all the below structures to help reduce syntax
 //	This is here for advanced users who are already familiar with the types
 
 
-AF     :: ANSI_Format
-AT     :: Attribute
-A3BIT  :: ANSI_3Bit
-A4BIT  :: ANSI_4Bit
-A8BIT  :: ANSI_8Bit
-A24BIT :: ANSI_24Bit
-FG3BIT :: FG_Color_3Bit
-BG3BIT :: BG_Color_3Bit
-FG4BIT :: FG_Color_4Bit
-BG4BIT :: BG_Color_4Bit
+AT  :: Attribute
+FG3 :: FGColor3
+BG3 :: BGColor3
+FG4 :: FGColor4
+BG4 :: BGColor4
 
-//	Attributes - independent of ANSI_Format variants
+//	HSL type for hsl procedures
+HSL :: [3]f64
+
+//	RGB type for ANSI24 Colors
+RGB :: [3]u8
+
+//	Attributes - independent of ANSI variants
 Attribute :: enum u8 {
 	NONE                    = 0,
 	BOLD                    = 1,
@@ -62,22 +78,22 @@ Attribute :: enum u8 {
 	NO_OVERLINE             = 55,
 }
 
-//	Union variants of ANSI_Format
-ANSI_Format :: union {
-	ANSI_3Bit,
-	ANSI_4Bit,
-	ANSI_8Bit,
-	ANSI_24Bit,
+//	Union variants of ANSI
+ANSI :: union {
+	ANSI3,
+	ANSI4,
+	ANSI8,
+	ANSI24,
 }
 
 //	3 Bit Color data structure - 8 colors
-ANSI_3Bit :: struct {
-	fg: FG_Color_3Bit,      // foreground
-	bg: BG_Color_3Bit,      // background
+ANSI3 :: struct {
+	fg: FGColor3,           // foreground
+	bg: BGColor3,           // background
 	at: bit_set[Attribute], // attributes
 }
 //	Foreground 3 Bit Colors
-FG_Color_3Bit :: enum u8 {
+FGColor3 :: enum u8 {
 	NONE       = 0,
 	FG_BLACK   = 30,
 	FG_RED     = 31,
@@ -90,7 +106,7 @@ FG_Color_3Bit :: enum u8 {
 	FG_DEFAULT = 39,
 }
 //	Background 3 Bit Colors
-BG_Color_3Bit :: enum u8 {
+BGColor3 :: enum u8 {
 	NONE       = 0,
 	BG_BLACK   = 40,
 	BG_RED     = 41,
@@ -104,13 +120,13 @@ BG_Color_3Bit :: enum u8 {
 }
 
 //	4 Bit Color Printing - 16 colors
-ANSI_4Bit :: struct {
-	fg: FG_Color_4Bit,      // foreground
-	bg: BG_Color_4Bit,      // background
+ANSI4 :: struct {
+	fg: FGColor4,           // foreground
+	bg: BGColor4,           // background
 	at: bit_set[Attribute], // attributes
 }
 //	Foreground 4 Bit Colors
-FG_Color_4Bit :: enum u8 {
+FGColor4 :: enum u8 {
 	NONE              = 0,
 	FG_BLACK          = 30,
 	FG_RED            = 31,
@@ -131,7 +147,7 @@ FG_Color_4Bit :: enum u8 {
 	FG_BRIGHT_WHITE   = 97,
 }
 //	Background 4 Bit Colors
-BG_Color_4Bit :: enum u8 {
+BGColor4 :: enum u8 {
 	NONE              = 0,
 	BG_BLACK          = 40,
 	BG_RED            = 41,
@@ -153,55 +169,29 @@ BG_Color_4Bit :: enum u8 {
 }
 
 //	8 Bit Color Printing - 256 colors
-ANSI_8Bit :: struct {
-	fg: Maybe(u8),          // foreground - 0-255 - can be nil
-	bg: Maybe(u8),          // background - 0-255 - can be nil
+ANSI8 :: struct {
+	fg: Maybe(u8),          // foreground - u8 or can be nil
+	bg: Maybe(u8),          // background - u8 or can be nil
 	at: bit_set[Attribute], // attributes
 }
 
 //	24 Bit (TrueColor) Color Printing - 16.7 million colors
-ANSI_24Bit :: struct {
-	fg: RGB,                // foreground - {r, g, b} can be nil
-	bg: RGB,                // background - {r, g, b} can be nil
+ANSI24 :: struct {
+	fg: Maybe(RGB),         // foreground - {u8, u8, u8} or can be nil
+	bg: Maybe(RGB),         // background - {u8, u8, u8} or can be nil
 	at: bit_set[Attribute], // attributes
 }
-//	RGB type for ANSI_24Bit Colors
-RGB :: distinct [3]Maybe(u8)
 
-//	Overloaded helper procedure for dealing with RGB which is [3]Maybe(u8)
-//	The nil-ability of afmt.RGB requires extra syntax for type assertion
-//	This utility provides a shorthand to reduce syntax and type assertion know-how
-//	Will convert from [3]u8 to [3]Maybe(u8) or [3]Maybe(u8) to [3]u8
-//	If [3]Maybe(u8) contains any nils, those values are set to 0
-rgb :: proc {_u8_rgb_to_rgb_maybe_u8, _rgb_maybe_u8_to_u8_rgb}
-
-//	Prefer the overloaded procedure rgb()
-//	Internal, but not private for if you wish to be explicit
-//	Converts [3]u8 to [3]Maybe(u8)
-_u8_rgb_to_rgb_maybe_u8 :: proc(rgb: [3]u8) -> RGB {
-	return {rgb.r, rgb.g, rgb.b}
-}
-
-//	Prefer the overloaded procedure rgb()
-//	Internal, but not private for if you wish to be explicit
-//	Converts [3]Maybe(u8) to [3]u8
-//	If [3]Maybe(u8) contains any nils, those values are set to 0
-_rgb_maybe_u8_to_u8_rgb :: proc(rgb: RGB) -> (_rgb: [3]u8) {
-	for c, i in rgb {
-		_rgb[i] = c.? or_else 0
-	}
-	return
-}
 //
 //	ANSI Control Sequence formatter
 //
 //	Input:
-//	- afmt: ANSI_Format struct containing the defined ANSI sequence to apply to fmt.
+//	- afmt: ANSI struct containing the defined ANSI sequence to apply to fmt.
 //	- fmt: In many cases (not all), a format string with placeholders for the provided print arguments.
 //
 //	Returns: the fmt string wrapped in the specified ANSI sequence
 @(require_results)
-afmt :: proc(afmt: ANSI_Format, fmt: string) -> string {
+afmt :: proc(afmt: ANSI, fmt: string) -> string {
 	acs: string // ANSI Control Sequence
 
 	if terminal.color_enabled {
@@ -215,9 +205,9 @@ afmt :: proc(afmt: ANSI_Format, fmt: string) -> string {
 			}
 		}
 
-		// Process ANSI_Format variants
+		// Process ANSI variants
 		switch a in afmt {
-		case ANSI_3Bit:	if terminal.color_depth >= .Three_Bit {
+		case ANSI3:	if terminal.color_depth >= .Three_Bit {
 				if .NONE not_in a.at {
 					for a in a.at {
 						delimit(&acs, acs, u8(a))
@@ -230,7 +220,7 @@ afmt :: proc(afmt: ANSI_Format, fmt: string) -> string {
 					delimit(&acs, acs, u8(a.bg))
 				}
 			}
-		case ANSI_4Bit:	if terminal.color_depth >= .Four_Bit {
+		case ANSI4:	if terminal.color_depth >= .Four_Bit {
 				if .NONE not_in a.at {
 					for a in a.at {
 						delimit(&acs, acs, u8(a))
@@ -243,7 +233,7 @@ afmt :: proc(afmt: ANSI_Format, fmt: string) -> string {
 					delimit(&acs, acs, u8(a.bg))
 				}
 			}
-		case ANSI_8Bit:	if terminal.color_depth >= .Eight_Bit {
+		case ANSI8:	if terminal.color_depth >= .Eight_Bit {
 				if .NONE not_in a.at {
 					for a in a.at {
 						delimit(&acs, acs, u8(a))
@@ -256,17 +246,17 @@ afmt :: proc(afmt: ANSI_Format, fmt: string) -> string {
 					delimit(&acs, acs, ansi.BG_COLOR_8_BIT, a.bg)
 				}
 			}
-		case ANSI_24Bit: if terminal.color_depth >= .True_Color {
+		case ANSI24: if terminal.color_depth >= .True_Color {
 				if .NONE not_in a.at {
 					for a in a.at {
 						delimit(&acs, acs, u8(a))
 					}
 				}
-				if a.fg.r != nil && a.fg.g != nil && a.fg.b != nil {
-					delimit(&acs, acs, ansi.FG_COLOR_24_BIT, a.fg.r, a.fg.g, a.fg.b)
+				if a.fg != nil {
+					delimit(&acs, acs, ansi.FG_COLOR_24_BIT, a.fg.(RGB).r, a.fg.(RGB).g, a.fg.(RGB).b)
 				}
-				if a.bg.r != nil && a.bg.g != nil && a.bg.b != nil {
-					delimit(&acs, acs, ansi.BG_COLOR_24_BIT, a.bg.r, a.bg.g, a.bg.b)
+				if a.bg != nil {
+					delimit(&acs, acs, ansi.BG_COLOR_24_BIT, a.bg.(RGB).r, a.bg.(RGB).g, a.bg.(RGB).b)
 				}
 			}
 		}
@@ -329,7 +319,7 @@ attribute := #sparse [Attribute]string {
 //	Foreground 4 Bit Color to string look-up-table 
 //	Enforcing lowercase to avoid regular use of to_upper or to_lower
 @(rodata)
-fg_color_4bit := #partial #sparse [FG_Color_4Bit]string {
+fgcolor4 := #partial #sparse [FGColor4]string {
 	.FG_BLACK          = "black",
 	.FG_RED            = "red",
 	.FG_GREEN          = "green",
@@ -351,7 +341,7 @@ fg_color_4bit := #partial #sparse [FG_Color_4Bit]string {
 //	Background 4 Bit Color to string look-up-table
 //	Enforcing lowercase to avoid regular use of to_upper or to_lower
 @(rodata)
-bg_color_4bit := #partial #sparse [BG_Color_4Bit]string {
+bgcolor4 := #partial #sparse [BGColor4]string {
 	.BG_BLACK          = "black",
 	.BG_RED            = "red",
 	.BG_GREEN          = "green",
@@ -370,7 +360,7 @@ bg_color_4bit := #partial #sparse [BG_Color_4Bit]string {
 	.BG_BRIGHT_CYAN    = "bright_cyan",
 	.BG_BRIGHT_WHITE   = "bright_white",
 }
-//	Parses an input string and builds an ANSI_Format struct.
+//	Parses an input string and builds an ANSI struct.
 //
 //	All parsing done with slicing and no dynamic allocations.
 //
@@ -380,18 +370,18 @@ bg_color_4bit := #partial #sparse [BG_Color_4Bit]string {
 //	- 8bit  -> "-f[12] -b[0] -a[attribute,attribute]"
 //	- 24bit -> "-f[77, 196, 255] -b[0,0,0] -a[attribute,attribute]"
 //
-//	Returns: ANSI_Format variant struct based on input string.
-afmt_parse :: proc(afmt: string) -> (af: ANSI_Format) {
+//	Returns: ANSI variant struct based on input string.
+afmt_parse :: proc(afmt: string) -> (af: ANSI) {
 
 	aset: bit_set[Attribute]
 	
-	f4bit: FG_Color_4Bit
+	f4bit: FGColor4
 	f8bit: Maybe(u8)
-	frgb:  RGB
+	frgb:  Maybe(RGB)
 	
-	b4bit: BG_Color_4Bit
+	b4bit: BGColor4
 	b8bit: Maybe(u8)
-	brgb:  RGB
+	brgb:  Maybe(RGB)
 
 	ctype :: enum u8 { c4bit,	c8bit, crgb	}
 	cset: bit_set[ctype]
@@ -424,20 +414,20 @@ afmt_parse :: proc(afmt: string) -> (af: ANSI_Format) {
 	}
   
 	//	- mixed types not allowed - color is ignored if types are mixed
-	//	- default to ANSI_4Bit for attributes if no fg or bg
+	//	- default to ANSI4 for attributes if no fg or bg
 	//	- attributes are independent of colors
 	//	- if all fails, return nil
 	if card(cset) == 1 {
 		switch cset {
 		case {.c4bit}:
-			af = ANSI_4Bit{ f4bit, b4bit, aset }
+			af = ANSI4{ f4bit, b4bit, aset }
 		case {.c8bit}:
-			af = ANSI_8Bit{ f8bit, b8bit, aset }
+			af = ANSI8{ f8bit, b8bit, aset }
 		case {.crgb}:
-			af = ANSI_24Bit{ frgb, brgb, aset }
+			af = ANSI24{ frgb, brgb, aset }
 		}
 	}	else if card(aset) > 0 {
-		af = ANSI_4Bit{ at = aset }
+		af = ANSI4{ at = aset }
 	}	else {
 		af = nil
 	}
@@ -464,12 +454,12 @@ _parse_attributes :: proc(att: string) -> (aset: bit_set[Attribute]) {
 
 //	Internal, but not private so can be used if needed/wanted
 //	Overload: parse 4bit color for either foreground or background colors
-_parse_color_4bit :: proc { _parse_fg_color_4bit, _parse_bg_color_4bit }
+_parse_color_4bit :: proc { _parse_fgcolor4, _parse_bgcolor4 }
 
 //	Internal, but not private so can be used if needed/wanted
-//	Parse foreground 4bit color - matches string to fg_color_4bit := [FG_Color_4Bit]string
-_parse_fg_color_4bit :: proc(c: string, fg: ^FG_Color_4Bit) -> (ok: bool) {
-	loop: for f, id in fg_color_4bit {
+//	Parse foreground 4bit color - matches string to fg_color_4bit := [FGColor4]string
+_parse_fgcolor4 :: proc(c: string, fg: ^FGColor4) -> (ok: bool) {
+	loop: for f, id in fgcolor4 {
 		if f != "" && f == c {
 			fg^ = id
 			ok = true
@@ -480,9 +470,9 @@ _parse_fg_color_4bit :: proc(c: string, fg: ^FG_Color_4Bit) -> (ok: bool) {
 }
 
 //	Internal, but not private so can be used if needed/wanted
-//	Parse background 4bit color - matches string to bg_color_4bit := [BG_Color_4Bit]string
-_parse_bg_color_4bit :: proc(c: string, bg: ^BG_Color_4Bit) -> (ok: bool) {
-	loop: for b, id in bg_color_4bit {
+//	Parse background 4bit color - matches string to bgcolor4 := [BGColor4]string
+_parse_bgcolor4 :: proc(c: string, bg: ^BGColor4) -> (ok: bool) {
+	loop: for b, id in bgcolor4 {
 		if b != "" && b == c {
 			bg^ = id
 			ok = true
@@ -506,14 +496,16 @@ _parse_u8 :: proc(s: string) -> (u: u8, ok: bool) {
 _parse_rgb :: proc(s: string) -> (rgb: RGB, ok: bool) {
 	i := 0
 	c := s
+	maybe_u8: [3]Maybe(u8)
 	loop: for it in strings.split_iterator(&c, ",") {
 		if i > 2 { break loop}
 		cu64, cok := strconv.parse_u64(strings.trim_space(it))
 		cok = cok && cu64 >= 0 && cu64 <= 255 ? true : false
-		if cok { rgb[i] = u8(cu64) }
+		if cok { maybe_u8[i] = u8(cu64) }
 		i += 1
 	}
-	ok = rgb.r != nil && rgb.g != nil && rgb.b != nil
+	ok = maybe_u8.r != nil && maybe_u8.g != nil && maybe_u8.b != nil
+	if ok { rgb = RGB{maybe_u8.r.?, maybe_u8.g.?, maybe_u8.b.?} }
 	return
 }
 
@@ -551,14 +543,14 @@ _parse_option :: proc(s, o: string) -> (res: string, found: bool) {
 
 //	Internal: Used by all print procedures to look for ansi format in arg[0]
 @(private="file")
-interogate_args :: proc(args: ..any) -> (ansi: ANSI_Format, found: bool) {
+interogate_args :: proc(args: ..any) -> (ansi: ANSI, found: bool) {
 	if len(args) > 0 {
 		switch a in args[0] {
-		case ANSI_Format: ansi = a; found = true
-		case ANSI_24Bit:  ansi = a; found = true
-		case ANSI_8Bit:   ansi = a; found = true
-		case ANSI_4Bit:   ansi = a; found = true
-		case ANSI_3Bit:   ansi = a; found = true
+		case ANSI: ansi = a; found = true
+		case ANSI24:  ansi = a; found = true
+		case ANSI8:   ansi = a; found = true
+		case ANSI4:   ansi = a; found = true
+		case ANSI3:   ansi = a; found = true
 		case string:
 			if ansi = afmt_parse(a); ansi != nil {
 				found = true
@@ -1107,10 +1099,57 @@ caprintfln :: proc(fmt: string, args: ..any, allocator := context.allocator) -> 
 //	Utilities
 
 
-//	Overload: Print to terminal ANSI sequence from ANSI_Format struct or from string containing ANSI sequence
-print_raw_ansi :: proc { print_raw_ansi_from_ansiformat, print_raw_ansi_from_string }
-//	Print to terminal ANSI sequence string from ANSI_Format struct
-print_raw_ansi_from_ansiformat :: proc(a: ANSI_Format) {
+//	Shortcut for defining N columns in a row
+//
+//	Input
+//	- typeid of an ANSI variant (ANSI24, ANSI8, ANSI4, or ANSI3)
+//
+//	Usage Example:
+//	- define a row with 2 columns, width 10, justified left, and white foreground text
+//		my_row := [2]Column(ANSI24) {
+//			{10, .LEFT, {fg = RGB{255, 255, 255}}},
+//			{10, .LEFT, {fg = RGB{255, 255, 255}}},
+//		}
+Column :: struct($V: typeid) where intrinsics.type_is_variant_of(ANSI, V) {
+	width:   u8,
+	justify: enum {LEFT, CENTER, RIGHT},
+	ansi:    V,
+}
+
+//	Row printing utility for use with Column struct only
+//
+//	Column widths are respected
+//	Text is truncated if longer than the width of a column
+//
+//	Justify to .Center will favor left if padding on left and right is not equal
+printrow :: proc(row: [$COLUMNS]$V/Column, args: ..any) {
+	if len(args) > 0 {
+		for c in 0..<COLUMNS {
+			if c >= len(args) { break }
+			arg := tprint(args[c])
+			if u8(len(arg)) > row[c].width {
+				arg = arg[:row[c].width]
+			}
+			switch row[c].justify {
+			case .LEFT:
+				printf("%-*v", row[c].ansi, row[c].width, arg)
+			case .CENTER:
+				delta    := int(row[c].width) - len(arg)
+  			padleft  := delta % 2 == 1 ? (delta - 1) / 2 : delta / 2
+  			padright := delta % 2 == 1 ? (delta + 1) / 2 : delta / 2
+  			printf("%*v%v%*v", row[c].ansi, padleft, "", arg, padright, "")
+			case .RIGHT:
+				printf("%*v", row[c].ansi, row[c].width, arg)
+			}
+		}
+		println()
+	}
+}
+
+//	Overload: Print to terminal ANSI sequence from ANSI struct or from string containing ANSI sequence
+print_raw_ansi :: proc { print_raw_ansi_from_ansi_struct, print_raw_ansi_from_string }
+//	Print to terminal ANSI sequence string from ANSI struct
+print_raw_ansi_from_ansi_struct :: proc(a: ANSI) {
 	print_raw_ansi_from_string(tprint(a, ""))
 }
 //	Print to terminal string containing ANSI sequence
@@ -1131,6 +1170,50 @@ print_raw_ansi_from_string :: proc(a: string) {
 	println()
 }
 
+//	relative luminance - normalized to 0 for darkest black and 1 for lightest white
+//	note: not the same as luminance in hsl
+//
+//	Input:
+//	- rgb = color
+//
+//	Returns:
+//	- relative_luminance of rgb input
+relative_luminance ::proc(rgb: RGB) -> (relative_luminance: f64) {
+	srgb := [3]f64{f64(rgb.r), f64(rgb.g), f64(rgb.b)} / 255
+	srgb[0] = srgb[0] <= 0.04045 ? srgb[0] / 12.920 : math.pow_f64(((srgb[0] + 0.055) / 1.055), 2.400)
+	srgb[1] = srgb[1] <= 0.04045 ? srgb[1] / 12.920 : math.pow_f64(((srgb[1] + 0.055) / 1.055), 2.400)
+	srgb[2] = srgb[2] <= 0.04045 ? srgb[2] / 12.920 : math.pow_f64(((srgb[2] + 0.055) / 1.055), 2.400)
+	relative_luminance = 0.2126 * srgb[0] + 0.7152 * srgb[1] + 0.0722 * srgb[2]
+	return
+}
+
+//	contrast ratio
+//
+//	Input:
+//	- c1 = RGB color 1
+//	- c2 = RGB color 2
+//
+//	Returns:
+//	- contrast ratio of L1:L2 if L1 is brighter
+//	- contrast ratio of L2:L1 if L2 is brighter
+//
+//	Use relative_luminance to determine which color is brighter
+//
+//	This results in a value ranging from 1:1 (no contrast at all) to 21:1 (the highest possible contrast)
+contrast_ratio :: proc(c1, c2: RGB) -> (contrast: f64) {
+	L1 := relative_luminance(c1)
+	L2 := relative_luminance(c2)
+	switch {
+	case L1 > L2:  contrast = (L1 + 0.05) / (L2 + 0.05)
+	case L1 < L2:  contrast = (L2 + 0.05) / (L1 + 0.05)
+	case:          contrast = 1
+	}
+	return
+}
+
+//	Overload: HSL to and from RGB conversion
+hsl :: proc {hsl_to_rgb, hsl_from_rgb}
+
 //	Convert hsl to rgb
 //
 //	Input:
@@ -1145,7 +1228,7 @@ print_raw_ansi_from_string :: proc(a: string) {
 //
 //	Returns:
 //	- rgb = {0-255, 0-255, 0-255}
-hsl_rgb :: proc(hsl: [3]f64) -> (rgb: [3]u8) {
+hsl_to_rgb :: proc(hsl: HSL) -> (rgb: RGB) {
 	rnd :: math.round
 	_hsl := hsl
 
@@ -1191,7 +1274,7 @@ hsl_rgb :: proc(hsl: [3]f64) -> (rgb: [3]u8) {
 //	- hsl[0] = hue (0-360) in degrees
 //	- hsl[1] = saturation (0-1) in percent where 1 == 100%
 //	- hsl[2] = luminance (0-1) in percent where 1 == 100%
-rgb_hsl :: proc(rgb: [3]u8) -> (hsl: [3]f64) {
+hsl_from_rgb :: proc(rgb: RGB) -> (hsl: HSL) {
 	// Convert rgb to 0:1 range
 	rgbf64 := [3]f64{f64(rgb.r), f64(rgb.g), f64(rgb.b)} / 255
 
@@ -1222,6 +1305,9 @@ rgb_hsl :: proc(rgb: [3]u8) -> (hsl: [3]f64) {
 	return
 }
 
+//	Overload for HSL to and from Base6 [3]u8
+hsl666 :: proc {hsl_to_rgb666, hsl_from_rgb666}
+
 //	Convert hsl to rgb
 //
 //	Input:
@@ -1236,13 +1322,13 @@ rgb_hsl :: proc(rgb: [3]u8) -> (hsl: [3]f64) {
 //
 //	Returns:
 //	- rgb = {0-5, 0-5, 0-5}
-hsl_rgb666 :: proc(hsl: [3]f64) -> (rgb: [3]u8) {
+hsl_to_rgb666 :: proc(hsl: HSL) -> (rgb: [3]u8) {
 	rnd :: math.round
 	_hsl := hsl
 
 	// No saturation, which means rgb is gray, so apply luminance and return
 	if _hsl[1] == 0 {
-		rgb = {u8(rnd(_hsl[2] * 5)), u8(rnd(_hsl[2] * 5)), u8(rnd(_hsl[2] * 5))}
+		rgb = {u8(rnd(_hsl[2] * 255) / 51), u8(rnd(_hsl[2] * 255) / 51), u8(rnd(_hsl[2] * 255) / 51)}
 		return rgb
 	}
 
@@ -1269,7 +1355,10 @@ hsl_rgb666 :: proc(hsl: [3]f64) -> (rgb: [3]u8) {
 		}
 	}
 
-	rgb = { u8(rnd(rgbf64.r * 5)), u8(rnd(rgbf64.g * 5)), u8(rnd(rgbf64.b * 5)) }
+	//	first multiply 255 and round, then divide by 51 (1/5 of 255) without rounding and allow truncation
+	//	this imposes a bias towards black, which seems less than the bias towards white when mulitplying by 5
+	rgb = { u8(rnd(rgbf64.r * 255) / 51), u8(rnd(rgbf64.g * 255) / 51), u8(rnd(rgbf64.b * 255) / 51) }
+	//rgb = { u8(rnd(rgbf64.r * 5)), u8(rnd(rgbf64.g * 5)), u8(rnd(rgbf64.b * 5)) }
 	return
 }
 
@@ -1283,7 +1372,7 @@ hsl_rgb666 :: proc(hsl: [3]f64) -> (rgb: [3]u8) {
 //	- hsl[0] = hue (0-360) in degrees
 //	- hsl[1] = saturation (0-1) in percent where 1 == 100%
 //	- hsl[2] = luminance (0-1) in percent where 1 == 100%
-rgb666_hsl :: proc(rgb: [3]u8) -> (hsl: [3]f64) {
+hsl_from_rgb666 :: proc(rgb: [3]u8) -> (hsl: HSL) {
 	// Max value is 5. Roll over value if above 5
 	_rgb := rgb % 6
 	// Convert rgb to 0:1 range
@@ -1316,33 +1405,61 @@ rgb666_hsl :: proc(rgb: [3]u8) -> (hsl: [3]f64) {
 	return
 }
 
+//	Overload for to and from Base6 [3]u8 to 8Bit
+rgb666 :: proc {rgb666_to_8bit, rgb666_from_8bit}
+
 //	Convert rgb value with range 0-5 (6x6x6 color cube) to 8bit color 16-231
 //	Excludes system colors 0-15 and grayscale 232-255
-rgb666_to_8bit :: proc(rgb666: [3]u8) -> (color: u8, ok: bool) {
-	if rgb666.r > 5 || rgb666.g > 5 || rgb666.b > 5 {
-		return 16, false // If invalid input, return black(the first color) and false
+//	valid is true if rgb values not truncated from 5 (i.e. rolled over)
+rgb666_to_8bit :: proc(rgb666: [3]u8) -> (color: u8, valid: bool) #optional_ok {
+	_rgb666 := rgb666
+	truncated: bool
+	for c, i in _rgb666 {
+		if c > 5 {
+			_rgb666[i] %= 6
+		}
+		truncated = true
 	}
+	valid = !truncated
 	//	Base-6 to u8 conversion +16 since main colors are 16-231
-	return (rgb666.r * 36) + (rgb666.g * 6) + rgb666.b + 16, true
+	color = (_rgb666.r * 36) + (_rgb666.g * 6) + _rgb666.b + 16
+	return
 }
 
 //	Convert 8bit color 16-231 to rgb value with range 0-5 (6x6x6 color cube)
-//	Excludes system colors 0-15 and grayscale 232-255
-rgb666_from_8bit :: proc(color: u8) -> (rgb666: [3]u8, ok: bool) {
+//	If system colors 0-15 or grayscale 232-255 is provided, the closest match is returned
+//	with valid set to false if it is not an exact match
+rgb666_from_8bit :: proc(color: u8) -> (rgb666: [3]u8, valid: bool) #optional_ok {
 	_color := color
 	if color < 16 || color > 231 {
-		return {0,0,0}, false //	If invalid input, return black and false
+		switch color {
+		case  0: return {0,0,0}, true  // 016 - exact match
+		case  1: return {2,0,0}, false // 088 - closest match
+		case  2: return {0,2,0}, false // 028 - closest match
+		case  3: return {2,2,0}, false // 100 - closest match
+		case  4: return {0,0,2}, false // 018 - closest match
+		case  5: return {2,0,2}, false // 090 - closest match
+		case  6: return {0,2,2}, false // 030 - closest match
+		case  7: return {4,4,4}, false // 188 - closest match
+		case  8: return {2,2,2}, false // 102 - closest match
+		case  9: return {5,0,0}, true  // 196 - exact match
+		case 10: return {0,5,0}, true  // 046 - exact match
+		case 11: return {5,5,0}, true  // 226 - exact match
+		case 12: return {0,0,5}, true  // 021 - exact match
+		case 13: return {5,0,5}, true  // 201 - exact match
+		case 14: return {0,5,5}, true  // 051 - exact match
+		case 15: return {5,5,5}, true  // 231 - exact match
+		case 232..=255: // grays closest match
+			_color = ((color - 232) * 10) + 8 
+			hsl := hsl_from_rgb(RGB{_color, _color, _color}) // slight bias towards black
+			return hsl_to_rgb666(hsl), false
+		}
 	}
 
 	//	6x6x6 color cube starts at 16. Normalize so first color is = {0,0,0} then treat as base 6 number
 	_color -= 16
 
 	//	After subtracting 16, 215 is the highest decimal value for a base-6, 3 digit number i.e. {5,5,5}
-	//	base-6 maths n * (6^d) + ...
-	//	where d is the digit placement from right to left starting at 0
-	//	n is the value at that digit in range 0-5
-	//	(n * (6^(2))) + (n * (6^(1))) + (n * (6^(0)))
-	//	base-6 num = 555 = (5 * 6^2) + (5 * 6^1) + (5 * 6^0) = 215
 	for i := 2; _color != 0; i -= 1 {
 		rgb666[i] = _color % 6
 		_color /= 6
@@ -1353,28 +1470,29 @@ rgb666_from_8bit :: proc(color: u8) -> (rgb666: [3]u8, ok: bool) {
 
 //	Print to terminal 3Bit color test
 print_3bit_color_test :: proc(background := true) {
-	pf := ANSI_3Bit{at = {.BOLD}}
-	if background { pf.at += {.INVERT} }
+	ansi := ANSI3{at = {.BOLD}}
+	if background { ansi.at += {.INVERT} }
 
 	println("-a[bold]", "\n3Bit Colors")
 	for c := 30; c <= 37; c += 1 {
-		pf.fg = FG_Color_3Bit(c)
-		printfln(" %-7s ", pf, fg_color_4bit[FG_Color_4Bit(c)])
+		ansi.fg = FGColor3(c)
+		// using fgcolor4 to get string name since they are the same in this case
+		printfln(" %-7s ", ansi, fgcolor4[FGColor4(c)])
 	}
 	println()
 }
 
 //	Print to terminal 4Bit color test
 print_4bit_color_test :: proc(background := true) {
-	pf := ANSI_4Bit{at = {.BOLD}}
-	if background { pf.at += {.INVERT} }
+	ansi := ANSI4{at = {.BOLD}}
+	if background { ansi.at += {.INVERT} }
 
 	println("-a[bold]", "\n4Bit Colors")
 	for c := 30; c <= 37; c += 1 {
-		pf.fg = FG_Color_4Bit(c)
-		printf(" %-7s ", pf, fg_color_4bit[FG_Color_4Bit(c)])
-		pf.fg = FG_Color_4Bit(c + 60)
-		printfln(" %-14s ", pf, fg_color_4bit[FG_Color_4Bit(c + 60)])
+		ansi.fg = FGColor4(c)
+		printf(" %-7s ", ansi, fgcolor4[ansi.fg])
+		ansi.fg = FGColor4(c + 60)
+		printfln(" %-14s ", ansi, fgcolor4[ansi.fg])
 	}
 	println()
 }
@@ -1386,25 +1504,23 @@ print_8bit_color_spectrum_bar :: proc(factor := f64(7.5)) {
 	hsl := [3]f64{0, 1, .5}
 	f   := factor == 0 ? 4.5 : factor > 360 ? 360 : factor
 
-	pf: A8BIT
-	//println("-a[bold]", "RGB Color Spectrum Bar")
+	ansi: ANSI8
 	for hsl[0] = 0; hsl[0] <= 360 - f; hsl[0] += f {
-		rgb := hsl_rgb666(hsl)
-		pf.bg, _ = rgb666_to_8bit(rgb)
-		print(pf, " ")
+		ansi.bg, _ = rgb666(hsl666(hsl))
+		print(ansi, " ")
 	}
 	println()
 }
 
 //	Print to terminal 8Bit color test
 print_8bit_color_test :: proc(background := true) {
-	pf := ANSI_8Bit{at = {.BOLD}}
-	if background { pf.at += {.INVERT} }
+	ansi := ANSI8{at = {.BOLD}}
+	if background { ansi.at += {.INVERT} }
 
 	println("-a[bold]", "\n8Bit System Colors")
 	for c in 0..=15 {
-		pf.fg = u8(c)
-		p := c == 7 || c == 15 ? printfln(" %3i ", pf, c) : printf(" %3i ", pf, c)
+		ansi.fg = u8(c)
+		p := c == 7 || c == 15 ? printfln(" %3i ", ansi, c) : printf(" %3i ", ansi, c)
 	}
 
 	println("-a[bold]", "\n8Bit Color Cube 6x6x6")
@@ -1412,24 +1528,24 @@ print_8bit_color_test :: proc(background := true) {
 	for rgb.g = 0; rgb.g < 6; rgb.g += 1 {
 		for rgb.r = 0; rgb.r < 3; rgb.r += 1 {
 			for rgb.b = 0; rgb.b < 6; rgb.b += 1 {
-				pf.fg, _ = rgb666_to_8bit(rgb)
-				p := rgb.rb != {2,5} ? printf(" %3i ", pf, pf.fg) : printfln(" %3i ", pf, pf.fg)
+				ansi.fg, _ = rgb666(rgb)
+				p := rgb.rb != {2,5} ? printf(" %3i ", ansi, ansi.fg) : printfln(" %3i ", ansi, ansi.fg)
 			}
 		}
 	}
 	for rgb.g = 0; rgb.g < 6; rgb.g += 1 {
 		for rgb.r = 3; rgb.r < 6; rgb.r += 1 {
 			for rgb.b = 0; rgb.b < 6; rgb.b += 1 {
-				pf.fg, _ = rgb666_to_8bit(rgb)
-				p := rgb.rb != {5,5} ? printf(" %3i ", pf, pf.fg) : printfln(" %3i ", pf, pf.fg)
+				ansi.fg, _ = rgb666(rgb)
+				p := rgb.rb != {5,5} ? printf(" %3i ", ansi, ansi.fg) : printfln(" %3i ", ansi, ansi.fg)
 			}
 		}
 	}
 
 	println("-a[bold]", "\n8Bit Grayscale")
 	for g in 232..=255 {
-		pf.fg = g <= 243 ? u8(g) : 255 - (u8(g) - 244)
-		p := g != 243 && g != 255 ? printf(" %3i ", pf, pf.fg) : printfln(" %3i ", pf, pf.fg)
+		ansi.fg = g <= 243 ? u8(g) : 255 - (u8(g) - 244)
+		p := g != 243 && g != 255 ? printf(" %3i ", ansi, ansi.fg) : printfln(" %3i ", ansi, ansi.fg)
 	}
 	println()
 }
@@ -1438,15 +1554,14 @@ print_8bit_color_test :: proc(background := true) {
 //	If factor == 0, then it is set to default 4.5 (80 colors)
 //	If factor is greater than 360, it is set to 360 (i.e. 1 color)
 print_24bit_color_spectrum_bar :: proc(factor := f64(7.5)) {
-	hsl := [3]f64{0, 1, .5}
+	_hsl := [3]f64{0, 1, .5}
 	f   := factor == 0 ? 4.5 : factor > 360 ? 360 : factor
 
-	pf: A24BIT
+	ansi: ANSI24
 	//println("-a[bold]", "RGB Color Spectrum Bar")
-	for hsl[0] = 0; hsl[0] <= 360 - f; hsl[0] += f {
-		rgb := hsl_rgb(hsl)
-		pf.bg = {rgb.r, rgb.g, rgb.b}
-		print(pf, " ")
+	for _hsl[0] = 0; _hsl[0] <= 360 - f; _hsl[0] += f {
+		ansi.bg = hsl(_hsl)
+		print(ansi, " ")
 	}
 	println()
 }
@@ -1471,33 +1586,33 @@ print_24bit_color_spectrum_bar :: proc(factor := f64(7.5)) {
 //	- afmt.print_24bit_color_test(16)
 //
 print_24bit_color_test :: proc(factor := u8(64)) {
-	pf := A24BIT{fg = {0,0,0}, at = {.INVERT}}
+	ansi := ANSI24{fg = RGB{0,0,0}, at = {.INVERT}}
 	rgb: [3]int //	have to use int, for loops will type overflow on u8 when max is 255
 	f := factor < 8 ? 8 : int(factor)
 
 	for rgb = {255, 0, 0}; rgb.g <= 255; rgb.g += rgb.g == 0 ? f - 1 : f {
-		pf.fg = {u8(rgb.r), u8(rgb.g), u8(rgb.b)}
-		print(pf, " ")
+		ansi.fg = RGB{u8(rgb.r), u8(rgb.g), u8(rgb.b)}
+		print(ansi, " ")
 	}
 	for rgb = {255 - f, 255, 0}; rgb.r >= 0; rgb.r -= rgb.r != 0 && rgb.r < f ? rgb.r : f {
-		pf.fg = {u8(rgb.r), u8(rgb.g), u8(rgb.b)}
-		print(pf, " ")
+		ansi.fg = RGB{u8(rgb.r), u8(rgb.g), u8(rgb.b)}
+		print(ansi, " ")
 	}
 	for rgb = {0, 255, f - 1}; rgb.b <= 255; rgb.b += rgb.b == 0 ? f - 1 : f {
-		pf.fg = {u8(rgb.r), u8(rgb.g), u8(rgb.b)}
-		print(pf, " ")
+		ansi.fg = RGB{u8(rgb.r), u8(rgb.g), u8(rgb.b)}
+		print(ansi, " ")
 	}
 	for rgb = {0, 255 - f, 255}; rgb.g >= 0; rgb.g -= rgb.g != 0 && rgb.g < f ? rgb.g : f {
-		pf.fg = {u8(rgb.r), u8(rgb.g), u8(rgb.b)}
-		print(pf, " ")
+		ansi.fg = RGB{u8(rgb.r), u8(rgb.g), u8(rgb.b)}
+		print(ansi, " ")
 	}
 	for rgb = {f - 1, 0, 255}; rgb.r <= 255; rgb.r += rgb.r == 0 ? f - 1 : f {
-		pf.fg = {u8(rgb.r), u8(rgb.g), u8(rgb.b)}
-		print(pf, " ")
+		ansi.fg = RGB{u8(rgb.r), u8(rgb.g), u8(rgb.b)}
+		print(ansi, " ")
 	}
 	for rgb = {255, 0, 255 - f}; rgb.b >= f - 1; rgb.b -= rgb.b != 0 && rgb.b < f ? rgb.b : f {
-		pf.fg = {u8(rgb.r), u8(rgb.g), u8(rgb.b)}
-		print(pf, " ")
+		ansi.fg = RGB{u8(rgb.r), u8(rgb.g), u8(rgb.b)}
+		print(ansi, " ")
 	}
 	println()
 }
