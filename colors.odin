@@ -20,6 +20,13 @@ color_name_from_value :: proc(c: RGB) -> (value: string, valid: bool) {
 
 //	Get RGB value from color name, if there is a match
 @(require_results)
+color_name_from_enum :: proc(color: Color) -> (value: string) {
+	value, _ = reflect.enum_name_from_value(color)
+	return
+}
+
+//	Get RGB value from color name, if there is a match
+@(require_results)
 color_value_from_name :: proc(name: string) -> (value: RGB, valid: bool) {
 	for c, e in color {
 		enum_name, _ := reflect.enum_name_from_value(e)
@@ -29,6 +36,13 @@ color_value_from_name :: proc(name: string) -> (value: RGB, valid: bool) {
 	}
 	return {0,0,0}, false
 }
+
+//	Get RGB value from color name, if there is a match
+@(require_results)
+color_value_from_enum :: proc(c: Color) -> (value: RGB) {
+	return color[c]
+}
+
 
 print_color_name_guide :: proc(group := "all") {
 	range: [2]i16
@@ -74,7 +88,7 @@ print_color_name_guide :: proc(group := "all") {
 		row[1].ansi.bg = u8(Color) % 2 == 0 ? black : black + 25
 		row[2].ansi.bg = u8(Color) % 2 == 0 ? black : black + 25
 		num  := tprintf("%3i", u8(Color))
-		name := tprintf(" %s", color_name_from_value(color) or_else "")
+		name := tprintf(" %s", color_name_from_enum(Color))
 		rgb  := tprintf("%3i,%3i,%3i", color.r, color.g, color.b)
 		printrow(row, num, name, rgb)
 	}
