@@ -1122,9 +1122,9 @@ Column :: struct($V: typeid) where intrinsics.type_is_variant_of(ANSI, V) {
 //	Text is truncated if longer than the width of a column
 //
 //	Justify to .Center will favor left if padding on left and right is not equal
-printrow :: proc(row: [$COLUMNS]$V/Column, args: ..any) {
+printrow :: proc(row: [$N]$V/Column, args: ..any) {
 	if len(args) > 0 {
-		for c in 0..<COLUMNS {
+		for c in 0..<N {
 			if c >= len(args) { break }
 			arg := tprint(args[c])
 			if u8(len(arg)) > row[c].width {
