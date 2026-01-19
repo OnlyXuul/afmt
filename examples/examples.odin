@@ -12,11 +12,11 @@ main :: proc() {
 	//	If using ANSI, then the ANSI format is the first arg of the ..args variatic parameter for each procedure. i.e. arg[0]
 	//	Then the remaining args are passed to the appropriate procedure. i.e. ..args[1:]
 	//	There are two ways to define an ANSI format.
-	//		1. Using ANSI_Format struct, which has 4 variants. ANSI_3Bit, ANSI_4Bit, ANSI_8Bit, and ANSI_24Bit.
+	//		1. Using ANSI struct, which has 4 variants. ANSI3, ANSI4, ANSI8, and ANSI24.
 	//		2. Using a single string:
-	//			ANSI_4Bit  -> "-f[blue] -b[black] -a[bold, underline]"
-	//			ANSI_8Bit  -> "-f[255] -b[50] -a[bold, underline]"
-	//			ANSI_24Bit -> "-f[200, 220, 250] -b[0, 0, 0] -a[bold, underline]"
+	//			ANSI4  -> "-f[blue] -b[black] -a[bold, underline]"
+	//			ANSI8  -> "-f[255] -b[50] -a[bold, underline]"
+	//			ANSI24 -> "-f[200, 220, 250] -b[0, 0, 0] -a[bold, underline]"
 	//
 	//	Rules:
 	//		- Cannot combine color types between foreground and background in the same ANSI format definition.
@@ -35,13 +35,15 @@ main :: proc() {
 {
 	//	A variable can be initialized with the top level union, then asigned to a variant.
 	//	This can be handy for dynamic assignments
-	aformat: afmt.ANSI_Format
-	aformat = afmt.ANSI_3Bit {
+	//	We start by creating a variable with the top level union name ANSI
+	//	Then refine it to the specific struct definition of ANSI3 (3Bit)
+	ansi: afmt.ANSI
+	ansi = afmt.ANSI3 {
   	fg = .FG_BLUE,            // foreground
   	bg = .BG_BLACK,           // background
   	at = {.BOLD, .UNDERLINE}, // atributes
 	}
-	afmt.println(aformat, "01. Hellope from println using ANSI_3Bit")
+	afmt.println(ansi, "01. Hellope from println using ANSI3")
 
 	//	The same thing using string formatting instead
 	afmt.println("-f[blue] -b[black] -a[bold, underline]", "01. Hellope from println using -f[blue] -b[black] -a[bold, underline]")
@@ -49,18 +51,18 @@ main :: proc() {
 	afmt.println()
 
 	//	What does the ANSI string look like without the text?
-	afmt.print_raw_ansi(aformat)
+	afmt.print_raw_ansi(ansi)
 	//	or with the text?
-	aformat_string := afmt.tprint(aformat, "01. Hellope from tprint using ANSI_3Bit")
+	aformat_string := afmt.tprint(ansi, "01. Hellope from tprint using ANSI3")
 	afmt.print_raw_ansi(aformat_string)
 }
 	afmt.println()
 {
 	//	Not all fields are required. Empty fields are ignored.
-	aformat := afmt.ANSI_4Bit {
+	ansi := afmt.ANSI4 {
 		fg = .FG_BRIGHT_BLUE,
 	}
-	afmt.println(aformat, "02. Hellope from println using ANSI_4Bit")
+	afmt.println(ansi, "02. Hellope from println using ANSI4")
 
 	//	The same thing using string formatting instead
 	afmt.println("-f[bright_blue]", "02. Hellope from println using -f[bright_blue]")
@@ -68,11 +70,11 @@ main :: proc() {
 	afmt.println()
 {
 	//	8bit uses 0-255 for colors
-	aformat := afmt.ANSI_8Bit {
+	ansi := afmt.ANSI8 {
 		fg = 12,
 		at = {.ITALIC},
 	}
-	afmt.println(aformat, "03. Hellope from println using ANSI_8Bit")
+	afmt.println(ansi, "03. Hellope from println using ANSI8")
 
 	//	The same thing using string formatting instead
 	afmt.println("-f[12] -a[italic]", "03. Hellope from println using -f[12] -a[italic]")
@@ -83,13 +85,13 @@ main :: proc() {
 	//	If the first arg in the arg list is an ansi format, that will be used, otherwise,
 	//	the procedure acts the same as usual.
 
-	aformat := afmt.ANSI_24Bit {
-		fg = {77, 196, 255},
-		bg = {35, 52, 71},
+	ansi := afmt.ANSI24 {
+		fg = afmt.RGB{77, 196, 255}, // ANSI colors can be nil, so a type must be specified
+		bg = [3]u8{35, 52, 71},      // afmt.RGB is just an alias for [3]u8
 		at = {.UNDERLINE},
 	}
 
-	afmt.printfln("%2i. %-8s%-6s%s", aformat, 4, "Hellope", "World", "from printfln using ANSI_24Bit")
+	afmt.printfln("%2i. %-8s%-6s%s", ansi, 4, "Hellope", "World", "from printfln using ANSI24")
 
 	//	The same thing using string formatting instead
 	afmt.printfln("%2i. %-8s%-6s%s", "-f[77, 196, 255]-b[35, 52, 71]-a[underline]", 4, "Hellope", "World", "from printfln using -f[77, 196, 255]-b[35, 52, 71]-a[underline]")
@@ -101,12 +103,12 @@ main :: proc() {
 	//
 {
 	//	Say we want a format for printing errors and warnings, that excepts dynamic input
-	eformat := afmt.ANSI_4Bit{ fg = .FG_RED }
-	wformat := afmt.ANSI_4Bit{ fg = .FG_YELLOW }
+	ansi_e := afmt.ANSI4{ fg = .FG_RED }
+	ansi_w := afmt.ANSI4{ fg = .FG_YELLOW }
 
 	//	Create an ansi format with color and store %v variable for future use
-	error := afmt.tprintf("%s%s", eformat, "Error: ", "%v")
-	warning := afmt.tprintf("%s%s", wformat, "Warning: ", "%v")
+	error := afmt.tprintf("%s%s", ansi_e, "Error: ", "%v")
+	warning := afmt.tprintf("%s%s", ansi_w, "Warning: ", "%v")
 
 	//	Now that we generated the ansi and inserted a %v in the string,
 	//	we can use it as the print format for any one variable given.
@@ -116,19 +118,19 @@ main :: proc() {
 	afmt.println()
 {
 	//	Do we want to create a format that has 2 different ansi formats in one line?
-	eformat01 := afmt.ANSI_4Bit{
+	ansi01 := afmt.ANSI4{
 		fg = .FG_RED,
 		at = {.BOLD, .UNDERLINE},
 	}
   
-	eformat02 := afmt.ANSI_4Bit{
+	ansi02 := afmt.ANSI4{
 		fg = .FG_MAGENTA,
 	}
 
-	format01 := afmt.tprint(eformat01, "Error:")
-	format02 := afmt.tprint(eformat02, " %v")
+	string01 := afmt.tprint(ansi01, "Error:")
+	string02 := afmt.tprint(ansi02, " %v")
 	//	Join the strings with afmt.tprintf
-	multi_format_error := afmt.tprintf("%s%s", format01, format02)
+	multi_format_error := afmt.tprintf("%s%s", string01, string02)
 
 	//	Now we have a string with 2 different ansi sequences, and a %v inserted to print variable data.
 	afmt.printfln(multi_format_error, "This is a multi ansi formated error message.")
@@ -175,7 +177,7 @@ main :: proc() {
 }
 	afmt.println()
 {
-	//	Don't like using the ANSI_Format struct and prefer the string method,
+	//	Don't like using the ANSI struct and prefer the string method,
 	//	but want to dynamically define your ansi without string parsing or using strings.concatenate?
 	fg := "bright_magenta"
 	bg := "black"
@@ -193,8 +195,8 @@ main :: proc() {
 {
 	//	The basic method
 	Table :: struct {
-		col_label: [4]afmt.ANSI_4Bit,
-		col_data:  [4]afmt.ANSI_4Bit,
+		col_label: [4]afmt.ANSI4,
+		col_data:  [4]afmt.ANSI4,
 		args:      [4]string,
 	}
 
@@ -245,8 +247,8 @@ main :: proc() {
 	//	We can make this even easier to use and re-use by doing a little extra work up front
 	//	Save the formats into a string with tprintf ...
 	Table :: struct {
-		col_label: [4]afmt.ANSI_4Bit,
-		col_data:  [4]afmt.ANSI_4Bit,
+		col_label: [4]afmt.ANSI4,
+		col_data:  [4]afmt.ANSI4,
 		args:      [4]string,
 	}
 
@@ -295,7 +297,7 @@ main :: proc() {
 	//	When data is mixed, but still needs to be column-ized, it must be converted to strings
 	//	This is true for fmt also, when formating ints, floats, etc.
 	
-	for r in 0..=10 {
+	for r in 0..=4 {
 		if r == 0 {
 			afmt.printfln(col_label, " table 03", " column 01 title", " column 02 title", " column 03 title")
 		} else {
@@ -326,7 +328,7 @@ main :: proc() {
 		afmt.tprintf("%v", "-f[235, 050, 180] -b[000, 000, 000]",          "%-20s"),
 	)
 
-	for r in 0..=10 {
+	for r in 0..=4 {
 		if r == 0 {
 			afmt.printfln(col_label, " table 04", " column 01 title", " column 02 title", " column 03 title")
 		} else {
@@ -337,6 +339,31 @@ main :: proc() {
 			afmt.printfln(row, row_label, col01, col02, col03)
 		}
 	}
+}
+	afmt.println()
+{
+	//	There is even an easier way to make tables using some utilities provided by afmt
+	//	Width is respected. Input is truncated if it is wider than the column definition.
+
+	//	Create a label row with 4 columns
+	label := [4]afmt.Column(afmt.ANSI24) {
+		{10, .CENTER, {fg = afmt.black, bg = afmt.khaki,      at = {.BOLD}}},
+		{20, .LEFT,   {fg = afmt.black, bg = afmt.lightgreen, at = {.BOLD}}},
+		{20, .LEFT,   {fg = afmt.black, bg = afmt.skyblue,    at = {.BOLD}}},
+		{20, .LEFT,   {fg = afmt.black, bg = afmt.orchid,     at = {.BOLD}}},
+	}
+	//	Create a row for data records with 4 columns to match label
+	row := [4]afmt.Column(afmt.ANSI24) {
+		{10, .CENTER, {fg = afmt.black, bg = afmt.khaki + 15,      at = {.BOLD}}},
+		{20, .LEFT,   {fg = afmt.lightgreen, bg = afmt.black}},
+		{20, .LEFT,   {fg = afmt.skyblue,    bg = afmt.black}},
+		{20, .LEFT,   {fg = afmt.orchid,     bg = afmt.black}},
+	}
+
+	afmt.printrow(label, "Table 05", " Easiest method", " using utilities", " from afmt")
+	afmt.printrow(row, "Row 01", " Hellope", " to all the", " peeps in the world")
+	afmt.printrow(row, "Row 02", " To all the", " peeps in the world", " hellope!!!")
+	afmt.printrow(row, "Row 03", " Input will be", " truncated if it's too", " long to fit the column")
 }
 
 	afmt.println()
@@ -351,17 +378,16 @@ main :: proc() {
 	//	Start with hue = 0 - This is the variable we will iterate on
 	//  Saturation = 1 (100%) and Luminance = 0.5 (50%) are fixed values to get the main colors
 	afmt.println("-a[bold]", "24Bit RGB Color Spectrum Bar")
-	hsl := [3]f64{0, 1, .5}
-	pf := afmt.A24BIT{at = {.INVERT}}
+	hsl  := [3]f64{0, 1, .5}
+	ansi := afmt.ANSI24{at = {.INVERT}}
 	//	Set an iteration factor to something sensible
 	//	i.e. greater than 0 and less than 360 (degrees)
 	//	Maybe we want 42 colors? Use decimals to enforce precision
 	factor := f64(360.000/42.000)
 	//	Iterate around the color wheel, excluding 360 at the end to avoid a repeat of first color (done with: hsl[0] <= 360 - factor)
 	for hsl[0] = 0; hsl[0] <= 360 - factor; hsl[0] += factor {
-		rgb := afmt.hsl_rgb(hsl)
-		pf.fg = {rgb.r, rgb.g, rgb.b}
-		afmt.print(pf, " ")
+		ansi.fg = afmt.hsl(hsl)
+		afmt.print(ansi, " ")
 	}
 	afmt.println()
 	//	Note: The same thing from above can be done with:
@@ -372,8 +398,8 @@ main :: proc() {
 	//	What's the hsl value of the last color used from above?
 	//	Must use type assertion with '?' since afmt.RGB can be nil
 	//	Since we know pf.fg is not nil from our usage above, there is no need to use or_else statement
-	rgb := [3]u8{ pf.fg.r.?, pf.fg.g.?, pf.fg.b.? }
-	afmt.println("HSL of last color:", afmt.rgb_hsl(rgb))
+	rgb := ansi.fg.? /* or_else {0,0,0} */
+	afmt.println("HSL of last color:", afmt.hsl(rgb))
 
 	//	There is a color test availible for each bit depth:
 	//	afmt.print_3bit_color_test()
@@ -386,13 +412,12 @@ main :: proc() {
 {
 	//	Having some fun with the above concept
 	text := "O'Doyle ... I mean, Odin rules!!!"
-	pf  := afmt.A24BIT{bg = {0,0,0}, at={.BOLD}}
-	hsl := [3]f64{0, 1, .5}
+	ansi := afmt.ANSI24{bg = afmt.RGB{0,0,0}, at={.BOLD}}
+	hsl  := [3]f64{0, 1, .5}
 	hfactor := 360.000/f64(len(text))
 	for t in text {
-		rgb := afmt.hsl_rgb(hsl)
-		pf.fg = {rgb.r, rgb.g, rgb.b}
-		afmt.print(pf, t)
+		ansi.fg = afmt.hsl(hsl)
+		afmt.print(ansi, t)
 		hsl[0] += hfactor
 	}
 	afmt.println()
@@ -404,13 +429,13 @@ main :: proc() {
 	//	With this, you can use a base-6 rgb value to convert to an u8 value of 16-231.
 	//	This is the range of the main colors which forms a 6x6x6 color cube
 	//	Warning, it is a little evil...
-	pf8bit: afmt.ANSI_8Bit
+	ansi: afmt.ANSI8
 	rgb := [3]u8{1, 0, 0}
-	pf8bit.bg, _ = afmt.rgb666_to_8bit(rgb)
-	afmt.println(pf8bit, "Adding evil to 8bit with utility rgb666_to_8bit for to do evils...")
+	ansi.bg, _ = afmt.rgb666(rgb)
+	afmt.println(ansi, "Adding evil to 8bit with utility rgb666_to_8bit for to do evils...")
 
 	//	Do we want to undo the evil? Or would this be re-evilling? I suppose evil begets evil...
-	rgb, _ = afmt.rgb666_from_8bit(pf8bit.bg.?)
+	rgb, _ = afmt.rgb666(ansi.bg.?)
 	afmt.println("-f[226]", "Extracting evil from 8Bit using rgb666_from_8bit:", rgb)
 }
 	afmt.println()
@@ -419,12 +444,12 @@ main :: proc() {
 	//	Note the specialized hsl_rgb666 procedure for base-6 color system
 	afmt.println("-a[bold]", "8Bit RGB Color Spectrum Bar")
 	hsl666 := [3]f64{0, 1, .5}
-	pf666: afmt.A8BIT
+	ansi: afmt.ANSI8
 	factor666 := f64(360.000/42.000)
 	for hsl666[0] = 0; hsl666[0] <= 360 - factor666; hsl666[0] += factor666 {
-		rgb666 := afmt.hsl_rgb666(hsl666)
-		pf666.bg, _ = afmt.rgb666_to_8bit(rgb666)
-		afmt.print(pf666, " ")
+		rgb666 := afmt.hsl666(hsl666)
+		ansi.bg, _ = afmt.rgb666(rgb666)
+		afmt.print(ansi, " ")
 	}
 	afmt.println()
 	//	Note: The same thing from above can be done with:
@@ -433,8 +458,8 @@ main :: proc() {
 	afmt.println()
 
 	// HSL of last color
-	rgb666, ok := afmt.rgb666_from_8bit(pf666.bg.?)
-	afmt.println("HSL of last color:", afmt.rgb666_hsl(rgb666))
+	rgb666, ok := afmt.rgb666(ansi.bg.?)
+	afmt.println("HSL of last color:", afmt.hsl666(rgb666))
 }
 	afmt.println()
 {
@@ -443,60 +468,70 @@ main :: proc() {
 	//	Note, since the gap is very large - 8Bit(216 colors in 6x6x6 color cube) and 24Bit (16_777_216 colors),
 	//	this means that often, a converted color will not match your expectations
 	//	It should mathmatically be the closest. It's kinda like rounding 1.5 to 2, but 1.499999 rounds to 1
-	color24       := [3]u8{255, 0, 175}
-	hsl_bridge    := afmt.rgb_hsl(color24)
-	color666      := afmt.hsl_rgb666(hsl_bridge)
-	color8, valid := afmt.rgb666_to_8bit(color666)
+	color24       := afmt.RGB{255, 0, 175}
+	hsl_bridge    := afmt.hsl(color24)
+	color666      := afmt.hsl666(hsl_bridge)
+	color8, valid := afmt.rgb666(color666)
 
-	pf1 := afmt.ANSI_24Bit{fg = {color24.r, color24.g, color24.b}}
-	afmt.println(pf1, "Original 24Bit Color")
-	pf2 := afmt.ANSI_8Bit{fg = color8}
-	afmt.println(pf2, "8Bit color converted from 24Bit color")
+	ansi24 := afmt.ANSI24{fg = color24}
+	afmt.println(ansi24, "Original 24Bit Color")
+	ansi8 := afmt.ANSI8{fg = color8}
+	afmt.println(ansi8, "8Bit color converted from 24Bit color")
 }
 	afmt.println()
 {
 	//	Have color decision paralysis because of 16_777_216 options?
 	//	Like using named colors similar to HTML?
-	//	This only works with ANSI_24Bit structs, not the string format method
+	//	This only works with ANSI24 structs, not the string format method
 	//	That would add too much parsing overhead to the print procedures
-	pf3 := afmt.ANSI_24Bit{fg = afmt.turquoise}
-	color_name, c_ok := afmt.color_name_from_value(pf3.fg)
-	afmt.println(pf3, "Color from name:", color_name)
+	ansi := afmt.ANSI24{fg = afmt.turquoise}
+	color_name, c_ok := afmt.color_name_from_value(ansi.fg.?)
+	afmt.println(ansi, "Color from name:", color_name)
 }
 	afmt.println()
 {
-	//	afmt.rgb()
-	//	A quality-of-life utility. This was saved for last on purpose.
-	//	You may have noticed that the nil-ability of afmt.RGB ([3]Maybe(u8)) imposes some extra syntax,
-	//	requiring use of extra type assertion steps. The colors must be allowed to be nil-able.
-	//	If anyone is interest in the reasons why, find me on the forums, and I'll happily discuss.
-	//	The below can help make things a little more straight forward and allow less syntax.
-	//	afmt.rgb can be used to flip back and forth. Useful if you know that you are not throwing nils around.
-	//	If you are working on something more dynamic that may contain nil color values, then stick with type assertion.
-	//	Note: if any afmt.RGB value is nil, the result will be set to 0
-
-	rgb_maybe: afmt.RGB //	initializes as {nil, nil, nil}
-	rgb_u8: [3]u8
-
-	rgb_u8 = afmt.rgb(rgb_maybe)
-	//afmt.println(rgb_maybe) //	prints: [nil, nil, nil]
-	//afmt.println(rgb_u8)		//	prints: [0, 0, 0]
-
-	rgb_maybe = {1,nil,nil}
-	rgb_u8 = afmt.rgb(rgb_maybe)
-	//afmt.println(rgb_maybe) // prints: [1, nil, nil]
-	//afmt.println(rgb_u8)    // prints: [1, 0, 0]
-
-	rgb_maybe = {1,2,3}
-	rgb_u8 = afmt.rgb(rgb_maybe)
-	//afmt.println(rgb_maybe) // prints: [1, 2, 3]
-	//afmt.println(rgb_u8)    // prints: [1, 2, 3]
-
-	rgb_u8 = {4,5,6}
-	rgb_maybe = afmt.rgb(rgb_u8)
-	//afmt.println(rgb_maybe) // prints: [4, 5, 6]
-	//afmt.println(rgb_u8)    // prints: [4, 5, 6]
+	//	Relative luminance is handy for determining brightness of a color to the human eye
+	//	normalized to 0 for darkest black and 1 for lightest white
+	//	It is not the same lumanance value found in hsl
+	ansi := afmt.ANSI24{fg = afmt.white, bg = afmt.royalblue}
+	afmt.printfln("%-33s%.8f", ansi, "Relative luminance of royalblue: ", afmt.relative_luminance(afmt.royalblue))
+	ansi.bg = afmt.indigo
+	afmt.printfln("%-33s%.8f", ansi, "Relative luminance of indigo: ", afmt.relative_luminance(afmt.indigo))
 }
+	afmt.println()
+{
+	//	Need to determine the contrast ratio of 2 colors to decide which is best to combine?
+	//	This results in a value ranging from 1:1 (no contrast at all) to 21:1 (the highest possible contrast)
+	ansi := afmt.ANSI24{bg = afmt.orchid, at = {.BOLD}}
+
+	black_ratio := afmt.contrast_ratio(afmt.black, afmt.orchid)
+	white_ratio := afmt.contrast_ratio(afmt.white, afmt.orchid)
+	
+	if black_ratio > white_ratio {
+		ansi.fg = afmt.black
+	} else {
+		ansi.fg = afmt.white
+	}
+
+	afmt.printfln("%-33s%.8f", ansi, "white on orchid contrast ratio:", white_ratio)
+	afmt.printfln("%-33s%.8f", ansi, "black on orchid contrast ratio:", black_ratio)
+
+}
+
+{
+	//	You can print color guides of all the named rgb colors with the following
+	//	afmt.print_color_name_guide("all")
+	//	afmt.print_color_name_guide("pinks")
+	//	afmt.print_color_name_guide("purples")
+	//	afmt.print_color_name_guide("blues")
+	//	afmt.print_color_name_guide("greens")
+	//	afmt.print_color_name_guide("yellows")
+	//	afmt.print_color_name_guide("oranges")
+	//	afmt.print_color_name_guide("reds")
+	//	afmt.print_color_name_guide("grayscale")
+}
+	afmt.println()
+
 	//	afmt uses context.temp_allocator to build ANSI sequences ...
 	//	This is not required, odin will do this for you periodically and when the program exits.
 	//	But you may want to do it yourself when appropriate in long running programs.
