@@ -22,3 +22,11 @@ cd odin/shared<br>
 git clone https://github.com/OnlyXuul/afmt.git<br>
 cd afmt/examples<br>
 odin run .<br>
+
+
+![Alt text](/screenshots/screenshot01.jpg?raw=true)
+![Alt text](/screenshots/screenshot02.jpg?raw=true)
+![Alt text](/screenshots/screenshot03.jpg?raw=true)
+![Alt text](/screenshots/screenshot04.jpg?raw=true)
+![Alt text](/screenshots/screenshot05.jpg?raw=true)
+![Alt text](/screenshots/screenshot06.jpg?raw=true)
