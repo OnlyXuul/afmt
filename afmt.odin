@@ -182,6 +182,7 @@ ANSI24 :: struct {
 	at: bit_set[Attribute], // attributes
 }
 
+
 //
 //	ANSI Control Sequence formatter
 //
@@ -1127,9 +1128,9 @@ printrow :: proc(row: [$N]$V/Column, args: ..any) {
 		for c in 0..<N {
 			if c >= len(args) { break }
 			arg := tprint(args[c])
-			if strings.rune_count(arg) > int(row[c].width) {
+			if strings.rune_count(arg) >= int(row[c].width) {
 				rloop: for r, idx in arg {
-					if strings.rune_count(arg[:idx]) == int(row[c].width) {
+					if strings.rune_count(arg[:idx]) >= int(row[c].width) {
 						arg = arg[:idx]
 						break rloop
 					}
