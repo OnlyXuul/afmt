@@ -2,10 +2,18 @@ package examples
 
 import "core:strings"
 
+import "shared:tracker"
+
 import "../../afmt"		// replace with location of library
 //import "shared:afmt"	// could place afmt folder in the default collection location odin/shared
 
 main :: proc() {
+
+	when ODIN_DEBUG {
+		t := tracker.init_tracker()
+		context.allocator = tracker.tracking_allocator(&t)
+		defer tracker.print_and_destroy_tracker(&t)
+	}
 	
 	afmt.println()
 	//	All print procedures in afmt work the same as their respective fmt version when not using ANSI.
