@@ -1117,17 +1117,20 @@ Column :: struct($V: typeid) where intrinsics.type_is_variant_of(ANSI, V) {
 	ansi:    V,
 }
 
+//	Overload: print row by slice or ..any
+printrow :: proc {printrow_slice, printrow_any}
+
 //	Row printing utility for use with Column struct only
 //
 //	Column widths are respected
 //	Text is truncated if longer than the width of a column
 //
 //	Justify to .Center will favor left if padding on left and right is not equal
-printrow :: proc(row: [$N]$V/Column, args: ..any) {
-	if len(args) > 0 {
+printrow_slice :: proc(row: [$N]$V/Column, array: []$T) {
+	if len(array) > 0 {
 		for c in 0..<N {
-			if c >= len(args) { break }
-			arg := tprint(args[c])
+			if c >= len(array) { break }
+			arg := tprint(array[c])
 			if strings.rune_count(arg) >= int(row[c].width) {
 				rloop: for r, idx in arg {
 					if strings.rune_count(arg[:idx]) >= int(row[c].width) {
@@ -1150,6 +1153,16 @@ printrow :: proc(row: [$N]$V/Column, args: ..any) {
 		}
 		println()
 	}
+}
+
+//	Row printing utility for use with Column struct only
+//
+//	Column widths are respected
+//	Text is truncated if longer than the width of a column
+//
+//	Justify to .Center will favor left if padding on left and right is not equal
+printrow_any :: proc(row: [$N]$V/Column, args: ..any) {
+	printrow_slice(row, args[:])
 }
 
 //	Overload: Print to terminal ANSI sequence from ANSI struct or from string containing ANSI sequence
