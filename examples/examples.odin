@@ -354,7 +354,7 @@ main :: proc() {
 	}
 	//	Create a row for data records with 4 columns to match label
 	row := [4]afmt.Column(afmt.ANSI24) {
-		{10, .CENTER, {fg = afmt.black, bg = afmt.khaki + 15,      at = {.BOLD}}},
+		{10, .CENTER, {fg = afmt.black,      bg = afmt.khaki + 15, at = {.BOLD}}},
 		{20, .LEFT,   {fg = afmt.lightgreen, bg = afmt.black}},
 		{20, .LEFT,   {fg = afmt.skyblue,    bg = afmt.black}},
 		{20, .LEFT,   {fg = afmt.orchid,     bg = afmt.black}},
