@@ -18,7 +18,7 @@ color_name_from_value :: proc(c: RGB) -> (value: string, valid: bool) {
 	return "", false
 }
 
-//	Get RGB value from color name, if there is a match
+//	Get color name from enum index value
 @(require_results)
 color_name_from_enum :: proc(color: Color) -> (value: string) {
 	value, _ = reflect.enum_name_from_value(color)
