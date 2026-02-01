@@ -195,25 +195,33 @@ ANSI24 :: struct {
 afmt :: proc(afmt: ANSI, fmt: string) -> string {
 	acs: string // ANSI Control Sequence
 
-	if terminal.color_enabled {
-
-		// Delimitor - Specialized for internal use only - assumes acs is also in args[0]
-		delimit :: proc(acs: ^string, args: ..any) {
-			if len(acs^) == 0 { // exclude acs when it is empty - prevent extra semi-colon
-				acs^ = cfmt.tprint(..args[1:], sep = ";")
-			} else { // include acs when it is not empty
-				acs^ = cfmt.tprint(..args, sep = ";")
-			}
+	// Delimitor - Specialized for internal use only - assumes acs is also in args[0]
+	delimit :: proc(acs: ^string, args: ..any) {
+		if len(acs^) == 0 { // exclude acs when it is empty - prevent extra semi-colon
+			acs^ = cfmt.tprint(..args[1:], sep = ";")
+		} else { // include acs when it is not empty
+			acs^ = cfmt.tprint(..args, sep = ";")
 		}
+	}
 
-		// Process ANSI variants
+	//	Process Attributes independently from colors
+	attributes: bit_set[Attribute]
+	switch a in afmt {
+	case ANSI3:  attributes = a.at
+	case ANSI4:  attributes = a.at
+	case ANSI8:  attributes = a.at
+	case ANSI24: attributes = a.at
+	}
+	if .NONE not_in attributes {
+		for a in attributes {
+			delimit(&acs, acs, u8(a))
+		}
+	}
+
+	// Process ANSI variants
+	if terminal.color_enabled {
 		switch a in afmt {
-		case ANSI3:	if terminal.color_depth >= .Three_Bit {
-				if .NONE not_in a.at {
-					for a in a.at {
-						delimit(&acs, acs, u8(a))
-					}
-				}
+		case ANSI3: if terminal.color_depth >= .Three_Bit {
 				if a.fg != .NONE {
 					delimit(&acs, acs, u8(a.fg))
 				}
@@ -221,12 +229,7 @@ afmt :: proc(afmt: ANSI, fmt: string) -> string {
 					delimit(&acs, acs, u8(a.bg))
 				}
 			}
-		case ANSI4:	if terminal.color_depth >= .Four_Bit {
-				if .NONE not_in a.at {
-					for a in a.at {
-						delimit(&acs, acs, u8(a))
-					}
-				}
+		case ANSI4: if terminal.color_depth >= .Four_Bit {
 				if a.fg != .NONE {
 					delimit(&acs, acs, u8(a.fg))
 				}
@@ -234,12 +237,7 @@ afmt :: proc(afmt: ANSI, fmt: string) -> string {
 					delimit(&acs, acs, u8(a.bg))
 				}
 			}
-		case ANSI8:	if terminal.color_depth >= .Eight_Bit {
-				if .NONE not_in a.at {
-					for a in a.at {
-						delimit(&acs, acs, u8(a))
-					}
-				}
+		case ANSI8: if terminal.color_depth >= .Eight_Bit {
 				if a.fg != nil {
 					delimit(&acs, acs, ansi.FG_COLOR_8_BIT, a.fg)
 				}
@@ -248,11 +246,6 @@ afmt :: proc(afmt: ANSI, fmt: string) -> string {
 				}
 			}
 		case ANSI24: if terminal.color_depth >= .True_Color {
-				if .NONE not_in a.at {
-					for a in a.at {
-						delimit(&acs, acs, u8(a))
-					}
-				}
 				if a.fg != nil {
 					delimit(&acs, acs, ansi.FG_COLOR_24_BIT, a.fg.(RGB).r, a.fg.(RGB).g, a.fg.(RGB).b)
 				}
@@ -542,16 +535,16 @@ _parse_option :: proc(s, o: string) -> (res: string, found: bool) {
 //
 
 
-//	Internal: Used by all print procedures to look for ansi format in arg[0]
+//	Internal: Used by all print procedures to look for ansi format in args[0]
 @(private="file")
 interogate_args :: proc(args: ..any) -> (ansi: ANSI, found: bool) {
 	if len(args) > 0 {
 		switch a in args[0] {
-		case ANSI: ansi = a; found = true
-		case ANSI24:  ansi = a; found = true
-		case ANSI8:   ansi = a; found = true
-		case ANSI4:   ansi = a; found = true
-		case ANSI3:   ansi = a; found = true
+		case ANSI:   ansi = a; found = true
+		case ANSI3:  ansi = a; found = true
+		case ANSI4:  ansi = a; found = true
+		case ANSI8:  ansi = a; found = true
+		case ANSI24: ansi = a; found = true
 		case string:
 			if ansi = afmt_parse(a); ansi != nil {
 				found = true
@@ -1117,6 +1110,22 @@ Column :: struct($V: typeid) where intrinsics.type_is_variant_of(ANSI, V) {
 	ansi:    V,
 }
 
+//	Row printing utility for use with Column struct only
+//
+//	Print multiple rows of columns
+//	- The first slice is rows, and second is columns
+//	- i.e. slices[rows][columns]
+//
+//	Column widths are respected
+//	Text is truncated if longer than the width of a column
+//
+//	Justify to .Center will favor left if padding on left and right is not equal
+printrows :: proc(row: [$N]$V/Column, slices: [][]$T) {
+	for s in slices {
+		printrow(row, s[:])
+	}
+}
+
 //	Overload: print row by slice or ..any
 printrow :: proc {printrow_slice, printrow_any}
 
@@ -1126,13 +1135,13 @@ printrow :: proc {printrow_slice, printrow_any}
 //	Text is truncated if longer than the width of a column
 //
 //	Justify to .Center will favor left if padding on left and right is not equal
-printrow_slice :: proc(row: [$N]$V/Column, array: []$T) {
-	if len(array) > 0 {
+printrow_slice :: proc(row: [$N]$V/Column, slice: []$T) {
+	if len(slice) > 0 {
 		for c in 0..<N {
-			if c >= len(array) { break }
-			arg := tprint(array[c])
+			if c >= len(slice) { break }
+			arg := tprint(slice[c])
 			if strings.rune_count(arg) >= int(row[c].width) {
-				rloop: for r, idx in arg {
+				rloop: for _, idx in arg {
 					if strings.rune_count(arg[:idx]) >= int(row[c].width) {
 						arg = arg[:idx]
 						break rloop
@@ -1144,9 +1153,9 @@ printrow_slice :: proc(row: [$N]$V/Column, array: []$T) {
 				printf("%-*v", row[c].ansi, row[c].width, arg)
 			case .CENTER:
 				delta    := int(row[c].width) - len(arg)
-  			padleft  := delta % 2 == 1 ? (delta - 1) / 2 : delta / 2
-  			padright := delta % 2 == 1 ? (delta + 1) / 2 : delta / 2
-  			printf("%*v%v%*v", row[c].ansi, padleft, "", arg, padright, "")
+				padleft  := delta % 2 == 1 ? (delta - 1) / 2 : delta / 2
+				padright := delta % 2 == 1 ? (delta + 1) / 2 : delta / 2
+				printf("%*v%v%*v", row[c].ansi, padleft, "", arg, padright, "")
 			case .RIGHT:
 				printf("%*v", row[c].ansi, row[c].width, arg)
 			}
@@ -1539,7 +1548,7 @@ print_8bit_color_test :: proc(background := true) {
 	println("-a[bold]", "\n8Bit System Colors")
 	for c in 0..=15 {
 		ansi.fg = u8(c)
-		p := c == 7 || c == 15 ? printfln(" %3i ", ansi, c) : printf(" %3i ", ansi, c)
+		_ = c == 7 || c == 15 ? printfln(" %3i ", ansi, c) : printf(" %3i ", ansi, c)
 	}
 
 	println("-a[bold]", "\n8Bit Color Cube 6x6x6")
@@ -1548,7 +1557,7 @@ print_8bit_color_test :: proc(background := true) {
 		for rgb.r = 0; rgb.r < 3; rgb.r += 1 {
 			for rgb.b = 0; rgb.b < 6; rgb.b += 1 {
 				ansi.fg, _ = rgb666(rgb)
-				p := rgb.rb != {2,5} ? printf(" %3i ", ansi, ansi.fg) : printfln(" %3i ", ansi, ansi.fg)
+				_ = rgb.rb != {2,5} ? printf(" %3i ", ansi, ansi.fg) : printfln(" %3i ", ansi, ansi.fg)
 			}
 		}
 	}
@@ -1556,7 +1565,7 @@ print_8bit_color_test :: proc(background := true) {
 		for rgb.r = 3; rgb.r < 6; rgb.r += 1 {
 			for rgb.b = 0; rgb.b < 6; rgb.b += 1 {
 				ansi.fg, _ = rgb666(rgb)
-				p := rgb.rb != {5,5} ? printf(" %3i ", ansi, ansi.fg) : printfln(" %3i ", ansi, ansi.fg)
+				_ = rgb.rb != {5,5} ? printf(" %3i ", ansi, ansi.fg) : printfln(" %3i ", ansi, ansi.fg)
 			}
 		}
 	}
@@ -1564,7 +1573,7 @@ print_8bit_color_test :: proc(background := true) {
 	println("-a[bold]", "\n8Bit Grayscale")
 	for g in 232..=255 {
 		ansi.fg = g <= 243 ? u8(g) : 255 - (u8(g) - 244)
-		p := g != 243 && g != 255 ? printf(" %3i ", ansi, ansi.fg) : printfln(" %3i ", ansi, ansi.fg)
+		_ = g != 243 && g != 255 ? printf(" %3i ", ansi, ansi.fg) : printfln(" %3i ", ansi, ansi.fg)
 	}
 	println()
 }

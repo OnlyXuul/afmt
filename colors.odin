@@ -14,7 +14,6 @@ color_name_from_value :: proc(c: RGB) -> (value: string, valid: bool) {
 			return reflect.enum_name_from_value(e)
 		}
 	}
-
 	return "", false
 }
 
