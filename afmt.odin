@@ -5,8 +5,10 @@ import "core:math"
 import "core:strings"
 import "core:strconv"
 import "core:terminal"
+import "base:runtime"
 import "core:terminal/ansi"
 import "base:intrinsics"
+import "core:unicode/utf8"
 
 
 //	Depricated names of structures given aliases for now (temporary)
@@ -183,7 +185,6 @@ ANSI24 :: struct {
 }
 
 
-//
 //	ANSI Control Sequence formatter
 //
 //	Input:
@@ -218,7 +219,7 @@ afmt :: proc(afmt: ANSI, fmt: string) -> string {
 		}
 	}
 
-	// Process ANSI variants
+	// Process color for ANSI variants
 	if terminal.color_enabled {
 		switch a in afmt {
 		case ANSI3: if terminal.color_depth >= .Three_Bit {
@@ -387,7 +388,11 @@ afmt_parse :: proc(afmt: string) -> (af: ANSI) {
 
 	// foreground color
 	if fg, ok := _parse_option(afmt, "-f"); ok {
-		if frgb, ok = _parse_rgb(fg); ok {
+		if frgb, ok = _parse_hex(fg); ok {
+			cset += {.crgb}
+		} else if frgb, ok = _parse_colors(fg); ok {
+			cset += {.crgb}
+		} else if frgb, ok = _parse_rgb(fg); ok {
 			cset += {.crgb}
 		} else if f8bit, ok = _parse_u8(fg); ok {
 			cset += {.c8bit}
@@ -398,7 +403,11 @@ afmt_parse :: proc(afmt: string) -> (af: ANSI) {
 		
 	// background color
 	if bg, ok := _parse_option(afmt, "-b"); ok {
-		if brgb, ok = _parse_rgb(bg); ok {			
+		if brgb, ok = _parse_hex(bg); ok {
+			cset += {.crgb}
+		} else if brgb, ok = _parse_colors(bg); ok {
+			cset += {.crgb}
+		} else if brgb, ok = _parse_rgb(bg); ok {			
 			cset += {.crgb}
 		} else if b8bit, ok = _parse_u8(bg); ok {
 			cset += {.c8bit}
@@ -453,11 +462,13 @@ _parse_color_4bit :: proc { _parse_fgcolor4, _parse_bgcolor4 }
 //	Internal, but not private so can be used if needed/wanted
 //	Parse foreground 4bit color - matches string to fg_color_4bit := [FGColor4]string
 _parse_fgcolor4 :: proc(c: string, fg: ^FGColor4) -> (ok: bool) {
-	loop: for f, id in fgcolor4 {
-		if f != "" && f == c {
-			fg^ = id
-			ok = true
-			break loop
+	if c[0] != '#' {
+		loop: for f, id in fgcolor4 {
+			if f != "" && f == c {
+				fg^ = id
+				ok = true
+				break loop
+			}
 		}
 	}
 	return
@@ -466,11 +477,13 @@ _parse_fgcolor4 :: proc(c: string, fg: ^FGColor4) -> (ok: bool) {
 //	Internal, but not private so can be used if needed/wanted
 //	Parse background 4bit color - matches string to bgcolor4 := [BGColor4]string
 _parse_bgcolor4 :: proc(c: string, bg: ^BGColor4) -> (ok: bool) {
-	loop: for b, id in bgcolor4 {
-		if b != "" && b == c {
-			bg^ = id
-			ok = true
-			break loop
+	if c[0] != '#' {
+		loop: for b, id in bgcolor4 {
+			if b != "" && b == c {
+				bg^ = id
+				ok = true
+				break loop
+			}
 		}
 	}
 	return	
@@ -478,16 +491,45 @@ _parse_bgcolor4 :: proc(c: string, bg: ^BGColor4) -> (ok: bool) {
 
 //	Internal, but not private so can be used if needed/wanted
 //	Parse u8 color from string 0-255
-_parse_u8 :: proc(s: string) -> (u: u8, ok: bool) {
+_parse_u8 :: proc(s: string) -> (u: Maybe(u8), ok: bool) {
 	n, nok := strconv.parse_u64(strings.trim_space(s))
-	ok = nok && n >= 0 && n <= 255 ? true : false
+	ok = nok && n >= 0 && n <= 255
 	if ok { u = u8(n) }
 	return
 }
 
 //	Internal, but not private so can be used if needed/wanted
+//	Parse hex color from string starting with # in the form of #FFFFFF
+_parse_hex :: proc(s: string) -> (rgb: Maybe(RGB), ok: bool) {
+	if len(s) == 7 && s[0] == '#' {
+		r, r_ok := strconv.parse_uint(s[1:3], 16)
+		g, g_ok := strconv.parse_uint(s[3:5], 16)
+		b, b_ok := strconv.parse_uint(s[5:7], 16)
+		ok = r_ok && g_ok && b_ok
+		if ok { rgb = RGB{u8(r), u8(g), u8(b)} }
+	}
+	return
+}
+
+//	Internal, but not private so can be used if needed/wanted
+//	Parse rgb be color from predefined color in colors.odin.
+//	string must be prefixed with #. i.e. #orchid
+_parse_colors :: proc(s: string) -> (rgb: Maybe(RGB), ok: bool) {
+	if len(s) > 2 && s[0] == '#' {
+		loop: for c, id in color {
+			if color_name_from_enum(id) == s[1:] {
+				rgb = c
+				ok = true
+				break loop
+			}
+		}
+	}
+	return
+}
+
+//	Internal, but not private so can be used if needed/wanted
 //	Parse rgb delimted as: 'r,g,b'
-_parse_rgb :: proc(s: string) -> (rgb: RGB, ok: bool) {
+_parse_rgb :: proc(s: string) -> (rgb: Maybe(RGB), ok: bool) {
 	i := 0
 	c := s
 	maybe_u8: [3]Maybe(u8)
@@ -534,8 +576,68 @@ _parse_option :: proc(s, o: string) -> (res: string, found: bool) {
 //	Printing procedures
 //
 
+//	Prefer this over the overloaded procedures
+//	Prints ANSI SGR sequence to terminal with no reset.
+//	This allows to set an ANSI format that is persistant until reset() is used.
+//
+//	Input:
+//	- fmt: Can either be an ANSI struct or string with ANSI formatting.
+//		The string format follows the same structure and rules that the print procedures follow.
+set :: proc {set_from_ansi_struct, set_from_string}
 
-//	Internal: Used by all print procedures to look for ansi format in args[0]
+//	Prefer set() overload
+//	Prints ANSI SGR sequence to terminal with no reset.
+//	This allows to set an ANSI format that is persistant until reset() is used.
+//
+//	Input:
+//	- fmt: ANSI struct
+set_from_ansi_struct :: proc(fmt: ANSI) {
+	reset := ansi.CSI + ansi.RESET + ansi.SGR
+	acs := afmt(fmt, "")
+	if len(acs) > len(reset) {
+		cfmt.print(acs[:len(acs)-len(reset)])
+	}
+}
+
+//	Prefer set() overload
+//	Prints ANSI SGR sequence to terminal with no reset.
+//	This allows to set an ANSI format that is persistant until reset() is used.
+//
+//	Input:
+//	- fmt: string with ANSI formatting.
+//		The string format follows the same structure and rules that the print procedures follow.
+set_from_string :: proc(fmt: string) {
+	if _fmt := afmt_parse(fmt); _fmt != nil {
+		reset := ansi.CSI + ansi.RESET + ansi.SGR
+		acs := afmt(_fmt, "")
+		if len(acs) > len(reset) {
+			cfmt.print(acs[:len(acs)-len(reset)])
+		}
+	}
+}
+
+//	Prints ANSI reset sequence
+//
+//	Reverts terminal colors and attributes to default.
+//
+//	Input:
+//	- newline: default is false. Set to true to print newline after reset.
+//		This is useful for odd behaviours that happen when printing newlines with background colors and reaching end of terminal.
+//		It is best to not print a newline before resetting background color.
+//		If using background color, do not print a newline on last line printed.
+//		Instead print last line without newline, then use reset(newline=true).
+//		https://unix.stackexchange.com/questions/717101/ansi-terminal-color-behaves-strangely
+//		https://bugzilla.gnome.org/show_bug.cgi?id=754596
+//		https://unix.stackexchange.com/questions/212933/background-color-whitespace-when-end-of-the-terminal-reached
+reset :: proc(newline := false) {
+	if newline {
+		cfmt.println(ansi.CSI + ansi.RESET + ansi.SGR)
+	} else {
+		cfmt.print(ansi.CSI + ansi.RESET + ansi.SGR)
+	}
+}
+
+//	Internal Only: Used by all print procedures to look for ansi format in args[0]
 @(private="file")
 interogate_args :: proc(args: ..any) -> (ansi: ANSI, found: bool) {
 	if len(args) > 0 {
@@ -1099,8 +1201,8 @@ caprintfln :: proc(fmt: string, args: ..any, allocator := context.allocator) -> 
 //	- typeid of an ANSI variant (ANSI24, ANSI8, ANSI4, or ANSI3)
 //
 //	Usage Example:
-//	- define a row with 2 columns, width 10, justified left, and white foreground text
-//		my_row := [2]Column(ANSI24) {
+//	- define 2 columns with width 10, justified left, and white foreground text
+//		cols := [2]Column(ANSI24) {
 //			{10, .LEFT, {fg = RGB{255, 255, 255}}},
 //			{10, .LEFT, {fg = RGB{255, 255, 255}}},
 //		}
@@ -1110,77 +1212,234 @@ Column :: struct($V: typeid) where intrinsics.type_is_variant_of(ANSI, V) {
 	ansi:    V,
 }
 
-//	Row printing utility for use with Column struct only
+//	Print a single row from slice, array, dynamic array, or variadic input of any
 //
-//	Print multiple rows of columns
-//	- The first slice is rows, and second is columns
-//	- i.e. slices[rows][columns]
+//	Input:
+//	- cols: [N]Column struct of N length - defines column width, justify, and ansi
+//	- data: 1 Dimensional slice, array, dynamic array, or variadic input of any
+//	- precision: Default is 2. Only applies to floats for slice, array, or dynamic array.
 //
-//	Column widths are respected
-//	Text is truncated if longer than the width of a column
-//
-//	Justify to .Center will favor left if padding on left and right is not equal
-printrows :: proc(row: [$N]$V/Column, slices: [][]$T) {
-	for s in slices {
-		printrow(row, s[:])
-	}
+//	Notes on Column struct:
+//	- Column widths are respected
+//	- Text is truncated if longer than the width of a column
+//	- Justify to .Center will favor left if padding on left and right is not equal
+printrow :: proc {
+	print_slice_1d,
+	print_array_1d,
+	print_dynamic_1d,
+
+	printrow_any,
 }
 
-//	Overload: print row by slice or ..any
-printrow :: proc {printrow_slice, printrow_any}
+//	Print a single row or multiple rows from slice, array, or dynamic array
+//
+//	Input:
+//	- cols: [N]Column struct of N length - defines column width, justify, and ansi
+//	- data: 1 or 2 Dimensional slice, array, or dynamic array.
+//			If 1D, then only 1 row is printed. If 2D, then multiple rows are printed.
+//	- precision: Default is 2. Only applies to floats for slice, array, or dynamic array.
+//
+//	Notes on Column struct:
+//	- Column widths are respected
+//	- Text is truncated if longer than the width of a column
+//	- Justify to .Center will favor left if padding on left and right is not equal
+printtable :: proc {
+	print_slice_1d,
+	print_slice_slice_2d,
+	print_slice_array_2d,
+	print_slice_dynamic_2d,
 
-//	Row printing utility for use with Column struct only
-//
-//	Column widths are respected
-//	Text is truncated if longer than the width of a column
-//
-//	Justify to .Center will favor left if padding on left and right is not equal
-printrow_slice :: proc(row: [$N]$V/Column, slice: []$T) {
-	if len(slice) > 0 {
-		for c in 0..<N {
-			if c >= len(slice) { break }
-			arg := tprint(slice[c])
-			if strings.rune_count(arg) >= int(row[c].width) {
-				rloop: for _, idx in arg {
-					if strings.rune_count(arg[:idx]) >= int(row[c].width) {
-						arg = arg[:idx]
-						break rloop
-					}
-				}
-			}
-			switch row[c].justify {
-			case .LEFT:
-				printf("%-*v", row[c].ansi, row[c].width, arg)
-			case .CENTER:
-				delta    := int(row[c].width) - len(arg)
-				padleft  := delta % 2 == 1 ? (delta - 1) / 2 : delta / 2
-				padright := delta % 2 == 1 ? (delta + 1) / 2 : delta / 2
-				printf("%*v%v%*v", row[c].ansi, padleft, "", arg, padright, "")
-			case .RIGHT:
-				printf("%*v", row[c].ansi, row[c].width, arg)
+	print_array_1d,
+	print_array_slice_2d,
+	print_array_array_2d,
+	print_array_dynamic_2d,
+
+	print_dynamic_1d,
+	print_dynamic_slice_2d,
+	print_dynamic_array_2d,
+	print_dynamic_dynamic_2d,
+}
+
+//	Internal: Prefer overloads printrow and printtable
+print_slice_1d :: proc(cols: [$C]$V/Column, data: $S/[]$T, precision := 2)
+	where C > 0 && !intrinsics.type_is_slice(T) && !intrinsics.type_is_array(T) && !intrinsics.type_is_dynamic_array(T) {
+	_printrow_slice_1d(cols, data, precision)
+}
+
+//	Internal: Prefer overloads printrow and printtable
+print_slice_slice_2d :: proc(cols: [$C]$V/Column, datas: $S/[][]$T, precision := 2)
+	where C > 0 && !intrinsics.type_is_slice(T) && !intrinsics.type_is_array(T) && !intrinsics.type_is_dynamic_array(T) {
+	_printrow_slice_2d(cols, datas, precision)
+}
+
+//	Internal: Prefer overloads printrow and printtable
+print_slice_array_2d :: proc(cols: [$C]$V/Column, datas: $S/[][$M]$T, precision := 2)
+	where C > 0 && !intrinsics.type_is_slice(T) && !intrinsics.type_is_array(T) && !intrinsics.type_is_dynamic_array(T) {
+	_printrow_slice_2d(cols, datas, precision)
+}
+
+//	Internal: Prefer overloads printrow and printtable
+print_slice_dynamic_2d :: proc(cols: [$C]$V/Column, datas: $S/[][dynamic]$T, precision := 2)
+	where C > 0 && !intrinsics.type_is_slice(T) && !intrinsics.type_is_array(T) && !intrinsics.type_is_dynamic_array(T) {
+	_printrow_slice_2d(cols, datas, precision)
+}
+
+//	Internal: Prefer overloads printrow and printtable
+print_array_1d :: proc(cols: [$C]$V/Column, data: $S/[$M]$T, precision := 2)
+	where C > 0 && !intrinsics.type_is_slice(T) && !intrinsics.type_is_array(T) && !intrinsics.type_is_dynamic_array(T) {
+	_data := data
+	_printrow_slice_1d(cols, _data[:], precision)
+}
+
+//	Internal: Prefer overloads printrow and printtable
+print_array_slice_2d :: proc(cols: [$C]$V/Column, datas: $S/[$N][]$T, precision := 2)
+	where C > 0 && !intrinsics.type_is_slice(T) && !intrinsics.type_is_array(T) && !intrinsics.type_is_dynamic_array(T) {
+	_datas := datas
+	_printrow_slice_2d(cols, _datas[:], precision)
+}
+
+//	Internal: Prefer overloads printrow and printtable
+print_array_array_2d :: proc(cols: [$C]$V/Column, datas: $S/[$N][$M]$T, precision := 2)
+	where C > 0 && !intrinsics.type_is_slice(T) && !intrinsics.type_is_array(T) && !intrinsics.type_is_dynamic_array(T) {
+	_datas := datas
+	_printrow_slice_2d(cols, _datas[:], precision)
+}
+
+//	Internal: Prefer overloads printrow and printtable
+print_array_dynamic_2d :: proc(cols: [$C]$V/Column, datas: $S/[$N][dynamic]$T, precision := 2)
+	where C > 0 && !intrinsics.type_is_slice(T) && !intrinsics.type_is_array(T) && !intrinsics.type_is_dynamic_array(T) {
+	_datas := datas
+	_printrow_slice_2d(cols, _datas[:], precision)
+}
+
+//	Internal: Prefer overloads printrow and printtable
+print_dynamic_1d :: proc(cols: [$C]$V/Column, data: $S/[dynamic]$T, precision := 2)
+	where C > 0 && !intrinsics.type_is_slice(T) && !intrinsics.type_is_array(T) && !intrinsics.type_is_dynamic_array(T) {
+	_printrow_slice_1d(cols, data[:], precision)
+}
+
+//	Internal: Prefer overloads printrow and printtable
+print_dynamic_slice_2d :: proc(cols: [$C]$V/Column, datas: $S/[dynamic][]$T, precision := 2)
+	where C > 0 && !intrinsics.type_is_slice(T) && !intrinsics.type_is_array(T) && !intrinsics.type_is_dynamic_array(T) {
+	_printrow_slice_2d(cols, datas[:], precision)
+}
+
+//	Internal: Prefer overloads printrow and printtable
+print_dynamic_array_2d :: proc(cols: [$C]$V/Column, datas: $S/[dynamic][$M]$T, precision := 2)
+	where C > 0 && !intrinsics.type_is_slice(T) && !intrinsics.type_is_array(T) && !intrinsics.type_is_dynamic_array(T) {
+	_printrow_slice_2d(cols, datas[:], precision)
+}
+
+//	Internal: Prefer overloads printrow and printtable
+print_dynamic_dynamic_2d :: proc(cols: [$C]$V/Column, datas: $S/[dynamic][dynamic]$T, precision := 2)
+	where C > 0 && !intrinsics.type_is_slice(T) && !intrinsics.type_is_array(T) && !intrinsics.type_is_dynamic_array(T) {
+	_printrow_slice_2d(cols, datas[:], precision)
+}
+
+//	Internal: Support procedure for printing a single row
+//	Prefer either printrow or printtable overloads.
+//	Not private if needed or wanted.
+//	Safe for internal use by this library.
+//	Un-safe for non-internal, note that it does not limit dimensions of slice, array, or dynamic array
+//	Make sure the dimensions are 1D.
+_printrow_slice_1d :: proc(cols: [$C]$V/Column, data: $S/[]$T, precision := 2) where C > 0 {
+	if len(data) > 0 {
+		for c in 0..<C {
+			if c >= len(data) { break }
+			if intrinsics.type_is_float(type_of(data[c])) {
+				_printrow_item(cols[c], tprintf("%.*f", precision, data[c]))
+			} else {
+				_printrow_item(cols[c], tprintf("%v", data[c]))
 			}
 		}
 		println()
 	}
 }
 
-//	Row printing utility for use with Column struct only
+//	Internal: Support procedure for printing a multiple rows
+//	Prefer either printrow or printtable overloads.
+//	Not private if needed or wanted.
+//	Safe for internal use by this library.
+//	Un-safe for non-internal: note that it does not limit dimensions of slice, array, or dynamic array.
+//	Make sure the dimensions are 2D.
+_printrow_slice_2d :: proc(cols: [$C]$V/Column, datas: $S/[]$T, precision := 2) where C > 0 {
+	if len(datas) > 0 {
+		for data in datas {
+			if len(data) > 0 {
+				for c in 0..<C {
+					if c >= len(data) { break }
+					if intrinsics.type_is_float(type_of(data[c])) {
+						_printrow_item(cols[c], tprintf("%.*f", precision, data[c]))
+					} else {
+						_printrow_item(cols[c], tprintf("%v", data[c]))
+					}
+				}
+			println()
+			}
+		}
+	}
+}
+
+//	Print a single row from variadic input of any
 //
-//	Column widths are respected
-//	Text is truncated if longer than the width of a column
+//	Input:
+//	- cols: [N]Column struct of N length - defines column width, justify, and ansi
+//	- data: variadic input of any.
 //
-//	Justify to .Center will favor left if padding on left and right is not equal
-printrow_any :: proc(row: [$N]$V/Column, args: ..any) {
-	printrow_slice(row, args[:])
+//	Notes on Column struct:
+//	- Column widths are respected
+//	- Text is truncated if longer than the width of a column
+//	- Justify to .Center will favor left if padding on left and right is not equal
+printrow_any :: proc(cols: [$C]$V/Column, args: ..any) where C > 0 {
+	if len(args) > 0 {
+		for c in 0..<C {
+			if c >= len(args) { break }
+			_printrow_item(cols[c], tprint(args[c]))
+		}
+		println()
+	}
+}
+
+//	Internal Only: Used by printrow_any and printrow (overloaded)
+//	Intention is to unify printinng method for both under one hood
+//	- i.e. One place to edit
+@(private="file")
+_printrow_item :: proc(c: $V/Column, arg: string) {
+	_arg := arg
+
+	//	Check for need to truncate
+	if _, _, width := utf8.grapheme_count(_arg); width >= int(c.width) {
+		rloop: for _, idx in _arg {
+			if _, _, width := utf8.grapheme_count(_arg[:idx]); width >= int(c.width) {
+				_arg = _arg[:idx]
+				break rloop
+			}
+		}
+	}
+	
+	switch c.justify {
+	case .LEFT:
+		printf("% -*s", c.ansi, c.width, _arg)
+	case .CENTER:
+		delta    := int(c.width) - len(_arg)
+		padleft  := delta % 2 == 1 ? (delta - 1) / 2 : delta / 2
+		padright := delta % 2 == 1 ? (delta + 1) / 2 : delta / 2
+		printf("% *s%s% *s", c.ansi, padleft, "", _arg, padright, "")
+	case .RIGHT:
+		printf("% *s", c.ansi, c.width, _arg)
+	}
 }
 
 //	Overload: Print to terminal ANSI sequence from ANSI struct or from string containing ANSI sequence
+//	Mostly helpful for double checking and debugging resulting ANSI Control Sequence
 print_raw_ansi :: proc { print_raw_ansi_from_ansi_struct, print_raw_ansi_from_string }
 //	Print to terminal ANSI sequence string from ANSI struct
+//	Mostly helpful for double checking and debugging resulting ANSI Control Sequence
 print_raw_ansi_from_ansi_struct :: proc(a: ANSI) {
 	print_raw_ansi_from_string(tprint(a, ""))
 }
 //	Print to terminal string containing ANSI sequence
+//	Mostly helpful for double checking and debugging resulting ANSI Control Sequence
 print_raw_ansi_from_string :: proc(a: string) {
 	for r in a {
 		switch r {
@@ -1597,8 +1856,8 @@ print_24bit_color_spectrum_bar :: proc(factor := f64(7.5)) {
 //	Print to terminal 24Bit color test
 //	If factor is less than 8, then set it to 8
 //
-//	Brute force method of iterating color wheel
-//	Saving as reference for debugging hsl_rgb if needed
+//	Brute force method of iterating color wheel.
+//	Saving as reference for debugging hsl_rgb if needed.
 //	The following should produce the same spectrum bars, respectively:
 //
 //	- afmt.print_24bit_color_spectrum_bar(30)
