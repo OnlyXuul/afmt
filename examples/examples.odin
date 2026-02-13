@@ -611,7 +611,7 @@ afmt.println()
 }
 	afmt.println()
 {
-	//	Can also set a persistant ANSI format and then reset
+	//	Can also set a persistent ANSI format and then reset
 	afmt.set("-f[blue]")
 	afmt.println("All other lines from this point will be the same ANSI format ...")
 	afmt.println("... until we reset")
