@@ -16,7 +16,10 @@ main :: proc() {
 	//		2. Using a single string:
 	//			ANSI4  -> "-f[blue] -b[black] -a[bold, underline]"
 	//			ANSI8  -> "-f[255] -b[50] -a[bold, underline]"
-	//			ANSI24 -> "-f[200, 220, 250] -b[0, 0, 0] -a[bold, underline]"
+	//			ANSI24 -> 3 ways
+	//				- "-f[200, 220, 250] -b[0, 0, 0] -a[bold, underline]" // r, g, b
+	//				- "-f[#ff00ff] -b[#000000] -a[bold, underline]"       // hex prefixed with #. i.e. #RRGGBB
+	//				- "-f[#orchid] -b[#black] -a[bold, underline]"        // predefined rgb color name found in colors.odin
 	//
 	//	Rules:
 	//		- Cannot combine color types between foreground and background in the same ANSI format definition.
@@ -247,13 +250,13 @@ main :: proc() {
 	//	We can make this even easier to use and re-use by doing a little extra work up front
 	//	Save the formats into a string with tprintf ...
 	Table :: struct {
-		col_label: [4]afmt.ANSI4,
+		col_title: [4]afmt.ANSI4,
 		col_data:  [4]afmt.ANSI4,
 		args:      [4]string,
 	}
 
 	tbl := Table {
-		col_label = {
+		col_title = {
 			{fg = .FG_BLACK, bg = .BG_YELLOW,  at = {.BOLD}},
 			{fg = .FG_BLACK, bg = .BG_GREEN,   at = {.BOLD}},
 			{fg = .FG_BLACK, bg = .BG_BLUE,    at = {.BOLD}},
@@ -268,15 +271,15 @@ main :: proc() {
 		args = { "%-10v", "%-20v", "%-20v", "%-20v" },
 	}
 
-	col_label := afmt.tprintf(
+	title := afmt.tprintf(
 		"%s%s%s%s",
-		afmt.tprintf("%s", tbl.col_label[0], tbl.args[0]),
-		afmt.tprintf("%s", tbl.col_label[1], tbl.args[1]),
-		afmt.tprintf("%s", tbl.col_label[2], tbl.args[2]),
-		afmt.tprintf("%s", tbl.col_label[3], tbl.args[3]),
+		afmt.tprintf("%s", tbl.col_title[0], tbl.args[0]),
+		afmt.tprintf("%s", tbl.col_title[1], tbl.args[1]),
+		afmt.tprintf("%s", tbl.col_title[2], tbl.args[2]),
+		afmt.tprintf("%s", tbl.col_title[3], tbl.args[3]),
 	)
 
-	row := afmt.tprintf(
+	cols := afmt.tprintf(
 		"%s%s%s%s",
 		afmt.tprintf("%s", tbl.col_data[0], tbl.args[0]),
 		afmt.tprintf("%s", tbl.col_data[1], tbl.args[1]),
@@ -286,11 +289,11 @@ main :: proc() {
 
 	//	Now with the ansi and args saved together in each string,
 	//	we can easily print table elements with one-liners.
-	afmt.printfln(col_label, " table 02", " column 01", " column 02", " column 03")
-	afmt.printfln(row, " row 01", " column data", " column data", " column data")
-	afmt.printfln(row, " row 02", " column data", " column data", " column data")
-	afmt.printfln(row, " row 03", " column data", " column data", " column data")
-	afmt.printfln(row, " row 04", " column data", " column data", " column data")
+	afmt.printfln(title, " table 02", " column 01", " column 02", " column 03")
+	afmt.printfln(cols, " row 01", " column data", " column data", " column data")
+	afmt.printfln(cols, " row 02", " column data", " column data", " column data")
+	afmt.printfln(cols, " row 03", " column data", " column data", " column data")
+	afmt.printfln(cols, " row 04", " column data", " column data", " column data")
 
 	afmt.println()
 
@@ -299,20 +302,20 @@ main :: proc() {
 	
 	for r in 0..=4 {
 		if r == 0 {
-			afmt.printfln(col_label, " table 03", " column 01 title", " column 02 title", " column 03 title")
+			afmt.printfln(title, " table 03", " column 01 title", " column 02 title", " column 03 title")
 		} else {
 			row_label := afmt.tprintf(" Row %2i", r) // format number to have 2 digits and save as string
 			col01 := afmt.tprintf(" column 01 data %2i", r)
 			col02 := afmt.tprintf(" column 02 data %2i", r)
 			col03 := afmt.tprintf(" column 03 data %2i", r)
-			afmt.printfln(row, row_label, col01, col02, col03) // print the whole row
+			afmt.printfln(cols, row_label, col01, col02, col03) // print the whole row
 		}
 	}
 }
 	afmt.println()
 {
 	//	Let's try this another way with string formating and rgb
-	col_label := afmt.tprintf(
+	cols_title := afmt.tprintf(
 		"%s%s%s%s",
 		afmt.tprintf("%v", "-f[0,0,0]-b[167, 168, 009]-a[bold]", "%-10s"),
 		afmt.tprintf("%v", "-f[0,0,0]-b[016, 194, 113]-a[bold]", "%-20s"),
@@ -320,7 +323,7 @@ main :: proc() {
 		afmt.tprintf("%v", "-f[0,0,0]-b[235, 050, 180]-a[bold]", "%-20s"),
 	)
 
-	row := afmt.tprintf(
+	cols_data := afmt.tprintf(
 		"%s%s%s%s",
 		afmt.tprintf("%v", "-f[000, 000, 000] -b[193, 195, 100] -a[bold]", "%-10s"),
 		afmt.tprintf("%v", "-f[016, 194, 113] -b[000, 000, 000]",          "%-20s"),
@@ -330,13 +333,13 @@ main :: proc() {
 
 	for r in 0..=4 {
 		if r == 0 {
-			afmt.printfln(col_label, " table 04", " column 01 title", " column 02 title", " column 03 title")
+			afmt.printfln(cols_title, " table 04", " column 01 title", " column 02 title", " column 03 title")
 		} else {
 			row_label := afmt.tprintf(" Row %2i", r) // format number to have 2 digits and save as string
 			col01 := afmt.tprintf(" column 01 data %2i", r)
 			col02 := afmt.tprintf(" column 02 data %2i", r)
 			col03 := afmt.tprintf(" column 03 data %2i", r)
-			afmt.printfln(row, row_label, col01, col02, col03)
+			afmt.printfln(cols_data, row_label, col01, col02, col03)
 		}
 	}
 }
@@ -346,24 +349,101 @@ main :: proc() {
 	//	Width is respected. Input is truncated if it is wider than the column definition.
 
 	//	Create a label row with 4 columns
-	label := [4]afmt.Column(afmt.ANSI24) {
+	cols_title := [4]afmt.Column(afmt.ANSI24) {
 		{10, .CENTER, {fg = afmt.black, bg = afmt.khaki,      at = {.BOLD}}},
 		{20, .LEFT,   {fg = afmt.black, bg = afmt.lightgreen, at = {.BOLD}}},
 		{20, .LEFT,   {fg = afmt.black, bg = afmt.skyblue,    at = {.BOLD}}},
 		{20, .LEFT,   {fg = afmt.black, bg = afmt.orchid,     at = {.BOLD}}},
 	}
 	//	Create a row for data records with 4 columns to match label
-	row := [4]afmt.Column(afmt.ANSI24) {
+	cols_data := [4]afmt.Column(afmt.ANSI24) {
 		{10, .CENTER, {fg = afmt.black,      bg = afmt.khaki + 15, at = {.BOLD}}},
 		{20, .LEFT,   {fg = afmt.lightgreen, bg = afmt.black}},
 		{20, .LEFT,   {fg = afmt.skyblue,    bg = afmt.black}},
 		{20, .LEFT,   {fg = afmt.orchid,     bg = afmt.black}},
 	}
 
-	afmt.printrow(label, "Table 05", " Easiest method", " using utilities", " from afmt")
-	afmt.printrow(row, "Row 01", " Hellope", " to all the", " peeps in the world")
-	afmt.printrow(row, "Row 02", " To all the", " peeps in the world", " hellope!!!")
-	afmt.printrow(row, "Row 03", " Input will be", " truncated if it's too", " long to fit the column")
+	afmt.printrow(cols_title, "Table 05", " Easiest method", " using utilities", " from afmt")
+	afmt.printrow(cols_data, "Row 01", " Hellope", " to all the", " peeps in the world")
+	afmt.printrow(cols_data, "Row 02", " To all the", " peeps in the world", " hellope!!!")
+	afmt.printrow(cols_data, "Row 03", " Input will be", " truncated if it's too", " long to fit the column")
+}
+
+afmt.println()
+
+{
+	//	Say we wanted to print a whole table of data all at once
+	//	printtable supports both 1D and 2D types
+	//	1D is treated as a single row, and 2D as multiple rows
+	//	There is also an optional parameter to specific precision which only applies to floats
+
+	cols_label := [4]afmt.Column(afmt.ANSI24) {0..<4 = {8, .CENTER, {fg = afmt.blue, at = {.BOLD, .UNDERLINE}}}}
+	cols_data  := [4]afmt.Column(afmt.ANSI24) {0..<4 = {8, .CENTER, {fg = afmt.green}}}
+
+	label := [4]string{"x", "y", "z", "w"}
+	data  := [4][4]f32 {
+		{42, 43, 44, 45},
+		{41, 42, 43, 44},
+		{40, 41, 42, 43},
+		{39, 40, 41, 42},
+	}
+
+	afmt.printtable(cols_label, label)
+	afmt.printtable(cols_data, data, precision = 2)
+
+}
+
+	afmt.println()
+
+{
+	//	A bit of geeking out for funs. Playing around with possibilities...
+	symbol := [11]string{"", "☉", "☿", "♀","♁", "♂", "♃", "♄", "♅", "♆", "♇"}
+	
+	solar_system := [11][]string{
+		{" Objects", "", "10^24 kg ",  "Radius km ", "9.87 m/s^2 ", "To Sol km "},
+		{" Sol",     "", "1,988,000 ", "695,700 ",   "27.94 ",      "0 ",},
+		{" Mercury", "", "0.330103 ",  "2,440 ",     "0.38 ",       "57,910,000 "},
+		{" Venus",   "", "4.86731 ",   "6051 ",      "0.90 ",       "108,200,000 "},
+		{" Earth",   "", "5.97217 ",   "6371 ",      "1.00 ",       "149,600,000 "},
+		{" Mars",    "", "0.641691 ",  "3389 ",      "0.38 ",       "227,900,000 "},
+		{" Jupiter", "", "1898.125 ",  "69,911 ",    "2.53 ",       "778,500,000 "},
+		{" Saturn",  "", "568.317 ",   "58,232 ",    "1.07 ",       "1,429,000,000 "},
+		{" Uranus",  "", "86.8099 ",   "25,362 ",    "0.89 ",       "2,871,000,000 "},
+		{" Neptune", "", "102.4092 ",  "24,622 ",    "1.14 ",       "4,495,000,000 "},
+		{" Pluto",   "", "0.01303 ",   "1188 ",      "0.06 ",       "5,906,000,000 "},
+	}
+
+	rows := [11]afmt.ANSI24 {
+		{afmt.orchid+10, afmt.black, {.UNDERLINE, .OVERLINED}}, // title
+		{afmt.RGB{255, 222, 033}, afmt.black+15, {}}, // Sol
+		{afmt.RGB{169, 169, 169}, afmt.black+15, {}}, // Mercury
+		{afmt.RGB{255, 199, 074}, afmt.black+15, {}}, // Venus
+		{afmt.RGB{000, 152, 204}, afmt.black+15, {}}, // Earth
+		{afmt.RGB{219, 037, 032}, afmt.black+15, {}}, // Mars
+		{afmt.RGB{255, 165, 000}, afmt.black+15, {}}, // Jupiter
+		{afmt.RGB{246, 234, 147}, afmt.black+15, {}}, // Saturn
+		{afmt.RGB{064, 224, 208}, afmt.black+15, {}}, // Uranus
+		{afmt.RGB{093, 126, 247}, afmt.black+15, {}}, // Neptune
+		{afmt.RGB{208, 180, 158}, afmt.black+15, {}}, // Pluto
+	}
+
+	cols := [6]afmt.Column(afmt.ANSI24) {
+		{10, .LEFT,  {}}, {01, .LEFT,  {}}, {12, .RIGHT, {}},
+		{11, .RIGHT, {}}, {12, .RIGHT, {}}, {15, .RIGHT, {}},
+	}
+
+	for s in 0..<len(solar_system) {
+		solar_system[s][1] = symbol[s]
+		//	apply a different color for each row that corrisponds to the planet
+		for &c in cols {
+			c.ansi = rows[s]
+		}
+		afmt.printrow(cols, solar_system[s])
+		// printtable would also work for printing a single row at a time when giving it an index
+		// note: printtable can also print an entire 2d slice, array, or dynamic array all at once
+		// we did not use it here, because I wanted to loop through and apply different colors to each row
+		//afmt.printtable(cols, solar_system[s])
+	}
 }
 
 	afmt.println()
@@ -482,8 +562,7 @@ main :: proc() {
 {
 	//	Have color decision paralysis because of 16_777_216 options?
 	//	Like using named colors similar to HTML?
-	//	This only works with ANSI24 structs, not the string format method
-	//	That would add too much parsing overhead to the print procedures
+	//	This only works with ANSI24
 	ansi := afmt.ANSI24{fg = afmt.turquoise}
 	color_name, c_ok := afmt.color_name_from_value(ansi.fg.?)
 	afmt.println(ansi, "Color from name:", color_name)
@@ -531,7 +610,26 @@ main :: proc() {
 	//	afmt.print_color_name_guide("grayscale")
 }
 	afmt.println()
-
+{
+	//	Can also set a persistant ANSI format and then reset
+	afmt.set("-f[blue]")
+	afmt.println("All other lines from this point will be the same ANSI format ...")
+	afmt.println("... until we reset")
+	//	Read the comments for reset() to learn about best practices
+	afmt.reset()
+	afmt.println("All ANSI now reset.")
+}
+	afmt.println()
+{
+	//	Some new features to show off
+	//	ANSI24 can now be applied used the string method in 3 different ways. All interchangeable.
+	afmt.println("-f[255,0,0]", "Printed using -f[255,0,0]")
+	afmt.println("-f[#FF0000]", "Printed using -f[#FF0000]")
+	//	This last one requires the name to be prefixed with # to distinguish it from ANSI4
+	//	Color names can be reference in colors.odin or afmt.print_color_name_guide("all")
+	afmt.println("-f[#crimson]", "Printed using -f[#crimson]")
+}
+	afmt.println()
 	//	afmt uses context.temp_allocator to build ANSI sequences ...
 	//	This is not required, odin will do this for you periodically and when the program exits.
 	//	But you may want to do it yourself when appropriate in long running programs.
