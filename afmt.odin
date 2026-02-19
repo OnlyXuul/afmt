@@ -5,7 +5,7 @@ import "core:math"
 import "core:strings"
 import "core:strconv"
 import "core:terminal"
-import "base:runtime"
+//import "base:runtime"
 import "core:terminal/ansi"
 import "base:intrinsics"
 import "core:unicode/utf8"
@@ -1410,7 +1410,7 @@ _printrow_item :: proc(c: $V/Column, arg: string) {
 	//	Check for need to truncate
 	if _, _, width := utf8.grapheme_count(_arg); width >= int(c.width) {
 		rloop: for _, idx in _arg {
-			if _, _, width := utf8.grapheme_count(_arg[:idx]); width >= int(c.width) {
+			if _, _, length := utf8.grapheme_count(_arg[:idx]); length >= int(c.width) {
 				_arg = _arg[:idx]
 				break rloop
 			}
