@@ -377,8 +377,8 @@ afmt.println()
 	//	1D is treated as a single row, and 2D as multiple rows
 	//	There is also an optional parameter to specific precision which only applies to floats
 
-	cols_label := [4]afmt.Column(afmt.ANSI24) {0..<4 = {8, .CENTER, {fg = afmt.blue, at = {.BOLD, .UNDERLINE}}}}
-	cols_data  := [4]afmt.Column(afmt.ANSI24) {0..<4 = {8, .CENTER, {fg = afmt.green}}}
+	cols_label := [4]afmt.Column(afmt.ANSI24) {0..<4 = {7, .CENTER, {fg = afmt.deeppink, bg = afmt.black, at = {.BOLD, .UNDERLINE}}}}
+	cols_data  := [4]afmt.Column(afmt.ANSI24) {0..<4 = {7, .CENTER, {fg = afmt.lime, bg = afmt.black}}}
 
 	label := [4]string{"x", "y", "z", "w"}
 	data  := [4][4]f32 {
@@ -611,16 +611,6 @@ afmt.println()
 }
 	afmt.println()
 {
-	//	Can also set a persistent ANSI format and then reset
-	afmt.set("-f[blue]")
-	afmt.println("All other lines from this point will be the same ANSI format ...")
-	afmt.println("... until we reset")
-	//	Read the comments for reset() to learn about best practices
-	afmt.reset()
-	afmt.println("All ANSI now reset.")
-}
-	afmt.println()
-{
 	//	Some new features to show off
 	//	ANSI24 can now be applied used the string method in 3 different ways. All interchangeable.
 	afmt.println("-f[255,0,0]", "Printed using -f[255,0,0]")
@@ -628,6 +618,30 @@ afmt.println()
 	//	This last one requires the name to be prefixed with # to distinguish it from ANSI4
 	//	Color names can be reference in colors.odin or afmt.print_color_name_guide("all")
 	afmt.println("-f[#crimson]", "Printed using -f[#crimson]")
+}
+	afmt.println()
+{
+	//	Can also set a persistent ANSI format and then reset
+	afmt.set("-f[blue]")
+	afmt.println("All other lines from this point will be the same ANSI format ...")
+	afmt.println("... until we print a reset")
+	//	Read the comments for reset() to learn about best practices
+	afmt.reset(newline = true)
+	//	afmt.printrst() //alias for afmt.printreset()
+	afmt.println("All ANSI now reset.")
+
+	afmt.println()
+	
+	//	There is also tset and aset that work similar to tprint and aprint in that they
+	//	return the string allocated with context.temp_allocator, or specified allocator
+	//	RESET and RST is a string constant for reseting ANSI SGR
+	//	Always include RESET at the end of a sequence to return terminal to defaults
+
+	a := afmt.tset("-f[#khaki]-a[bold]")
+	b := afmt.tset("-f[#turquoise]-a[underline]")
+	c := afmt.tset("-f[#mediumorchid]-a[no_underline]")
+
+	afmt.printfln("%v%v %v%v%v %v%v", a, "hellope", b, "world", c, "and all the peeps.", afmt.RESET /* or afmt.RST */)
 }
 	afmt.println()
 	//	afmt uses context.temp_allocator to build ANSI sequences ...
