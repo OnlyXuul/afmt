@@ -24,53 +24,87 @@ color_name_from_enum :: proc(color: Color) -> (value: string) {
 	return
 }
 
-print_color_name_guide :: proc(group := "all") {
-	range: [2]i16
+ColorGroup :: enum {all, pinks, purples, blues, greens, yellows, oranges, reds, grayscale}
+
+print_color_guide :: proc(group: ColorGroup = .all) {
+	range: [2]int
 	switch group {
-	case "All",       "all":       range = {000, 139}
-	case "Pinks",     "pinks":     range = {000, 013}
-	case "Purples",   "purples":   range = {014, 021}
-	case "Blues",     "blues":     range = {022, 054}
-	case "Greens",    "greens":    range = {055, 079}
-	case "Yellows",   "yellows":   range = {080, 096}
-	case "Oranges",   "oranges":   range = {097, 114}
-	case "Reds",      "reds":      range = {115, 130}
-	case "Grayscale", "grayscale": range = {131, 139}
-	case: range = {-1, -1}
+	case .all:       range = {000, 139}
+	case .pinks:     range = {000, 013}
+	case .purples:   range = {014, 021}
+	case .blues:     range = {022, 054}
+	case .greens:    range = {055, 079}
+	case .yellows:   range = {080, 096}
+	case .oranges:   range = {097, 114}
+	case .reds:      range = {115, 130}
+	case .grayscale: range = {131, 139}
 	}
 
-	width := [3]u8 {11, 26, 13}
-	label := [3]Column(ANSI24) {
-		{width[0], .CENTER, {fg = black, bg = silver + 25, at = {.BOLD}}},
-		{width[1], .LEFT,   {fg = black, bg = silver + 40, at = {.BOLD}}},
-		{width[2], .CENTER, {fg = black, bg = silver + 25, at = {.BOLD}}},
+	width := [4]u8 {7, 22, 13, 18}
+	label := [4]Column(ANSI24) {
+		{width[0], .CENTER, {fg = black, bg = silver, at = {.BOLD}}},
+		{width[1], .LEFT,   {fg = black, bg = lightgray, at = {.BOLD}}},
+		{width[2], .CENTER, {fg = black, bg = silver, at = {.BOLD}}},
+		{width[3], .CENTER, {fg = black, bg = lightgray, at = {.BOLD}}},
 	}
-	row := [3]Column(ANSI24) {
+	cols := [4]Column(ANSI24) {
 		{width[0], .CENTER, {fg = black, at = {.BOLD}}},
-		{width[1], .LEFT,   {fg = gainsboro, bg = black + 25}},
-		{width[2], .CENTER, {fg = gainsboro, bg = black + 25}},
+		{width[1], .LEFT,   {fg = gainsboro, bg = black}},
+		{width[2], .CENTER, {fg = gainsboro, bg = black}},
+		{width[3], .CENTER, {fg = gainsboro, bg = black}},
 	}
 
-	for _color, _Color in color {
-		if i16(_Color) < range[0] || i16(_Color) > range[1] {continue}
-		switch u8(_Color) {
-		case 000: printrow(label, "index", " Pinks",     "R   G   B")
-		case 014: printrow(label, "index", " Purples",   "R   G   B")
-		case 022: printrow(label, "index", " Blues",     "R   G   B")
-		case 055: printrow(label, "index", " Greens",    "R   G   B")
-		case 080: printrow(label, "index", " Yellows",   "R   G   B")
-		case 097: printrow(label, "index", " Oranges",   "R   G   B")
-		case 115: printrow(label, "index", " Reds",      "R   G   B")
-		case 131: printrow(label, "index", " Grayscale", "R   G   B")
+	for r in range[0]..=range[1] {
+		switch r {
+		case 000: printrow(label, "index", " Pinks",     "R   G   B", " H    S    L")
+		case 014: printrow(label, "index", " Purples",   "R   G   B", " H    S    L")
+		case 022: printrow(label, "index", " Blues",     "R   G   B", " H    S    L")
+		case 055: printrow(label, "index", " Greens",    "R   G   B", " H    S    L")
+		case 080: printrow(label, "index", " Yellows",   "R   G   B", " H    S    L")
+		case 097: printrow(label, "index", " Oranges",   "R   G   B", " H    S    L")
+		case 115: printrow(label, "index", " Reds",      "R   G   B", " H    S    L")
+		case 131: printrow(label, "index", " Grayscale", "R   G   B", " H    S    L")
 		}
-		row[0].ansi.fg = contrast_ratio(_color, black) > contrast_ratio(_color, white) ? black : white
-		row[0].ansi.bg = _color
-		row[1].ansi.bg = u8(_Color) % 2 == 0 ? black : black + 25
-		row[2].ansi.bg = u8(_Color) % 2 == 0 ? black : black + 25
-		num  := tprintf("%3i", u8(_Color))
-		name := tprintf(" %s", color_name_from_enum(_Color))
-		rgb  := tprintf("%3i,%3i,%3i", _color.r, _color.g, _color.b)
-		printrow(row, num, name, rgb)
+		e := Color(r)
+		c := color[e]
+		cols[0].ansi.fg = contrast_ratio(c, black) > contrast_ratio(c, white) ? black : white
+		cols[0].ansi.bg = c
+		cols[1].ansi.bg = r % 2 == 0 ? black : black + 25
+		cols[2].ansi.bg = r % 2 == 0 ? black : black + 25
+		//cols[3].ansi.bg = r % 2 == 0 ? black : black + 25
+		cols[3].ansi = cols[0].ansi
+		idx  := tprintf("%3i", r)
+		name := tprintf(" %s", color_name_from_enum(e))
+		rgb  := tprintf("%3i %3i %3i", c.r, c.g, c.b)
+		hsl_ := hsl(c)
+		hsls := tprintf("%6.2f %.2f %.2f", hsl_[0], hsl_[1], hsl_[2])
+		printrow(cols, idx, name, rgb, hsls)
+	}
+}
+
+tolower :: proc (str: string) -> (out: string) {
+	for s in str {
+		out = tprintf("%v%v", out, s >= 'A' && s <= 'Z' ? s + 32 : s)
+	}
+	return
+}
+
+//	depricated, soon to be removed and replaced by print_color_guide
+print_color_name_guide :: proc(group: string) {
+	grp: string
+	for g in group { //	temp to_lower
+		grp = tprintf("%v%v", grp, g >= 'A' && g <= 'Z' ? g + 32 : g)
+	}
+	switch grp {
+	case "all":                    print_color_guide(.all)
+	case "pink",      "pinks":     print_color_guide(.pinks)
+	case "purple",    "purples":   print_color_guide(.purples)
+	case "blue",      "blues":     print_color_guide(.blues)
+	case "green",     "greens":    print_color_guide(.greens)
+	case "yellow",    "yellows":   print_color_guide(.yellows)
+	case "orange",    "oranges":   print_color_guide(.oranges)
+	case "red",       "reds":      print_color_guide(.reds)
+	case "grayscale", "greyscale": print_color_guide(.grayscale)
 	}
 }
 

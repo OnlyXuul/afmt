@@ -5,7 +5,6 @@ import "core:math"
 import "core:strings"
 import "core:strconv"
 import "core:terminal"
-//import "base:runtime"
 import "core:terminal/ansi"
 import "base:intrinsics"
 import "core:unicode/utf8"
@@ -33,6 +32,10 @@ FG3 :: FGColor3
 BG3 :: BGColor3
 FG4 :: FGColor4
 BG4 :: BGColor4
+
+//	ACS definitions
+RST   :: RESET
+RESET :: ansi.CSI + ansi.RESET + ansi.SGR
 
 //	HSL type for hsl procedures
 HSL :: [3]f64
@@ -576,66 +579,6 @@ _parse_option :: proc(s, o: string) -> (res: string, found: bool) {
 //	Printing procedures
 //
 
-//	Prefer this over the overloaded procedures
-//	Prints ANSI SGR sequence to terminal with no reset.
-//	This allows to set an ANSI format that is persistant until reset() is used.
-//
-//	Input:
-//	- fmt: Can either be an ANSI struct or string with ANSI formatting.
-//		The string format follows the same structure and rules that the print procedures follow.
-set :: proc {set_from_ansi_struct, set_from_string}
-
-//	Prefer set() overload
-//	Prints ANSI SGR sequence to terminal with no reset.
-//	This allows to set an ANSI format that is persistant until reset() is used.
-//
-//	Input:
-//	- fmt: ANSI struct
-set_from_ansi_struct :: proc(fmt: ANSI) {
-	reset := ansi.CSI + ansi.RESET + ansi.SGR
-	acs := afmt(fmt, "")
-	if len(acs) > len(reset) {
-		cfmt.print(acs[:len(acs)-len(reset)])
-	}
-}
-
-//	Prefer set() overload
-//	Prints ANSI SGR sequence to terminal with no reset.
-//	This allows to set an ANSI format that is persistant until reset() is used.
-//
-//	Input:
-//	- fmt: string with ANSI formatting.
-//		The string format follows the same structure and rules that the print procedures follow.
-set_from_string :: proc(fmt: string) {
-	if _fmt := afmt_parse(fmt); _fmt != nil {
-		reset := ansi.CSI + ansi.RESET + ansi.SGR
-		acs := afmt(_fmt, "")
-		if len(acs) > len(reset) {
-			cfmt.print(acs[:len(acs)-len(reset)])
-		}
-	}
-}
-
-//	Prints ANSI reset sequence
-//
-//	Reverts terminal colors and attributes to default.
-//
-//	Input:
-//	- newline: default is false. Set to true to print newline after reset.
-//		This is useful for odd behaviours that happen when printing newlines with background colors and reaching end of terminal.
-//		It is best to not print a newline before resetting background color.
-//		If using background color, do not print a newline on last line printed.
-//		Instead print last line without newline, then use reset(newline=true).
-//		https://unix.stackexchange.com/questions/717101/ansi-terminal-color-behaves-strangely
-//		https://bugzilla.gnome.org/show_bug.cgi?id=754596
-//		https://unix.stackexchange.com/questions/212933/background-color-whitespace-when-end-of-the-terminal-reached
-reset :: proc(newline := false) {
-	if newline {
-		cfmt.println(ansi.CSI + ansi.RESET + ansi.SGR)
-	} else {
-		cfmt.print(ansi.CSI + ansi.RESET + ansi.SGR)
-	}
-}
 
 //	Internal Only: Used by all print procedures to look for ansi format in args[0]
 @(private="file")
@@ -1189,6 +1132,163 @@ caprintf :: proc(fmt: string, args: ..any, allocator := context.allocator, newli
 @(require_results)
 caprintfln :: proc(fmt: string, args: ..any, allocator := context.allocator) -> cstring {
 	return caprintf(fmt, ..args, allocator = allocator, newline = true)
+}
+
+//	Prefer this over the overloaded procedures
+//	Prints ANSI SGR sequence to terminal with no reset.
+//	This allows to set an ANSI format that is persistant until reset() is used.
+//
+//	Input:
+//	- fmt: Can either be an ANSI struct or string with ANSI formatting.
+//		The string format follows the same structure and rules that the print procedures follow.
+set :: proc {set_from_ansi_struct, set_from_string}
+
+//	Prefer set() overload
+//	Prints ANSI SGR sequence to terminal with no reset.
+//	This allows to set an ANSI format that is persistant until reset() is used.
+//
+//	Input:
+//	- fmt: ANSI struct
+set_from_ansi_struct :: proc(fmt: ANSI) {
+	acs := afmt(fmt, "")
+	if len(acs) > len(RESET) {
+		cfmt.print(acs[:len(acs)-len(RESET)])
+	}
+}
+
+//	Prefer set() overload
+//	Prints ANSI SGR sequence to terminal with no reset.
+//	This allows to set an ANSI format that is persistant until reset() is used.
+//
+//	Input:
+//	- fmt: string with ANSI formatting.
+//		The string format follows the same structure and rules that the print procedures follow.
+set_from_string :: proc(fmt: string) {
+	if _fmt := afmt_parse(fmt); _fmt != nil {
+		acs := afmt(_fmt, "")
+		if len(acs) > len(RESET) {
+			cfmt.print(acs[:len(acs)-len(RESET)])
+		}
+	}
+}
+
+//	Prints ANSI reset sequence
+//
+//	Reverts terminal colors and attributes to default.
+//
+//	Input:
+//	- newline: default is false. Set to true to print newline after reset.
+//		This is useful for odd behaviours that happen when printing newlines with background colors and reaching end of terminal.
+//		It is best to not print a newline before resetting background color.
+//		If using background color, do not print a newline on last line printed.
+//		Instead print last line without newline, then use reset(newline=true).
+//		https://unix.stackexchange.com/questions/717101/ansi-terminal-color-behaves-strangely
+//		https://bugzilla.gnome.org/show_bug.cgi?id=754596
+//		https://unix.stackexchange.com/questions/212933/background-color-whitespace-when-end-of-the-terminal-reached
+rst   :: reset
+reset :: proc(newline := false) {
+	if newline {
+		cfmt.println(ansi.CSI + ansi.RESET + ansi.SGR)
+	} else {
+		cfmt.print(ansi.CSI + ansi.RESET + ansi.SGR)
+	}
+}
+
+//	Prefer this over the overloaded procedures
+//	Returns ANSI SGR sequence string without reset.
+//
+//	Input:
+//	- fmt: Can either be an ANSI struct or string with ANSI formatting.
+//		The string format follows the same structure and rules that the print procedures follow.
+//
+//	Returns:
+//	- resulting string using context.temp_allocator
+tset :: proc {tset_from_ansi_struct, tset_from_string}
+
+//	Prefer tset() overload
+//	Returns ANSI SGR sequence string without reset.
+//
+//	Input:
+//	- fmt: ANSI struct
+//
+//	Returns:
+//	- resulting string using context.temp_allocator
+@(require_results)
+tset_from_ansi_struct :: proc(fmt: ANSI) -> string {
+	acs := afmt(fmt, "")
+	if len(acs) > len(RESET) {
+		return cfmt.tprint(acs[:len(acs)-len(RESET)])
+	}
+	return ""
+}
+
+//	Prefer tset() overload
+//	Returns ANSI SGR sequence string without reset.
+//
+//	Input:
+//	- fmt: string with ANSI formatting.
+//		The string format follows the same structure and rules that the print procedures follow.
+//	Returns:
+//	- resulting string using context.temp_allocator
+@(require_results)
+tset_from_string :: proc(fmt: string) -> string {
+	if _fmt := afmt_parse(fmt); _fmt != nil {
+		acs := afmt(_fmt, "")
+		if len(acs) > len(RESET) {
+			return cfmt.tprint(acs[:len(acs)-len(RESET)])
+		}
+	}
+	return ""
+}
+
+//	Prefer this over the overloaded procedures
+//	Returns ANSI SGR sequence string without reset.
+//
+//	Input:
+//	- fmt: Can either be an ANSI struct or string with ANSI formatting.
+//		The string format follows the same structure and rules that the print procedures follow.
+//	- allocator: used to allocate string
+//
+//	Returns:
+//	- resulting string using allocator
+aset :: proc {aset_from_ansi_struct, aset_from_string}
+
+//	Prefer tset() overload
+//	Returns ANSI SGR sequence string without reset.
+//
+//	Input:
+//	- fmt: ANSI struct
+//	- allocator: used to allocate string
+//
+//	Returns:
+//	- resulting string using allocator
+@(require_results)
+aset_from_ansi_struct :: proc(fmt: ANSI, allocator := context.allocator) -> string {
+	acs := afmt(fmt, "")
+	if len(acs) > len(RESET) {
+		return cfmt.aprint(acs[:len(acs)-len(RESET)], allocator)
+	}
+	return cfmt.aprint("", allocator)
+}
+
+//	Prefer tset() overload
+//	Returns ANSI SGR sequence string without reset.
+//
+//	Input:
+//	- fmt: string with ANSI formatting.
+//		The string format follows the same structure and rules that the print procedures follow.
+//	- allocator: used to allocate string
+//	Returns:
+//	- resulting string using allocator
+@(require_results)
+aset_from_string :: proc(fmt: string, allocator := context.allocator) -> string {
+	if _fmt := afmt_parse(fmt); _fmt != nil {
+		acs := afmt(_fmt, "")
+		if len(acs) > len(RESET) {
+			return cfmt.aprint(acs[:len(acs)-len(RESET)], allocator)
+		}
+	}
+	return cfmt.aprint("", allocator)
 }
 
 
