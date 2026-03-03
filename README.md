@@ -23,7 +23,7 @@ afmt (a for ansi) is designed to be used as a collection.<br>
    ```
 
 If you wish to use a custom collection folder, check Odin's website for how to do this.
-## Examples
+## Example Output
 ![Alt text](/screenshots/screenshot01.jpg?raw=true)
 ![Alt text](/screenshots/screenshot02.jpg?raw=true)
 ![Alt text](/screenshots/screenshot03.jpg?raw=true)
