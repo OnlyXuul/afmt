@@ -15,13 +15,11 @@ Odin printing library with support for ANSI colors and attributes. The goal is t
    ```odin
    import "shared:afmt"
    ```
-3. To run the examples for usage examples:
+3. To run usage examples:
    ```bash
    cd $(odin root)shared/afmt/examples
    odin run .
    ```
-
-If you wish to use a custom collection folder, check Odin's website for how to do this.
 ## Example Output
 ![Alt text](/screenshots/screenshot01.jpg?raw=true)
 ![Alt text](/screenshots/screenshot02.jpg?raw=true)
