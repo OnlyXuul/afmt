@@ -3,7 +3,6 @@ package examples
 import "core:strings"
 
 import "shared:afmt"		// replace with location of library
-//import "shared:afmt"	// could place afmt folder in the default collection location odin/shared
 
 main :: proc() {
 
