@@ -598,15 +598,15 @@ afmt.println()
 
 {
 	//	You can print color guides of all the named rgb colors with the following
-	//	afmt.print_color_name_guide("all")
-	//	afmt.print_color_name_guide("pinks")
-	//	afmt.print_color_name_guide("purples")
-	//	afmt.print_color_name_guide("blues")
-	//	afmt.print_color_name_guide("greens")
-	//	afmt.print_color_name_guide("yellows")
-	//	afmt.print_color_name_guide("oranges")
-	//	afmt.print_color_name_guide("reds")
-	//	afmt.print_color_name_guide("grayscale")
+	//afmt.print_color_guide(.all)
+	//afmt.print_color_guide(.pinks)
+	//afmt.print_color_guide(.purples)
+	//afmt.print_color_guide(.blues)
+	//afmt.print_color_guide(.greens)
+	//afmt.print_color_guide(.yellows)
+	//afmt.print_color_guide(.oranges)
+	//afmt.print_color_guide(.reds)
+	//afmt.print_color_guide(.grayscale)
 }
 	afmt.println()
 {
