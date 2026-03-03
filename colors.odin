@@ -24,6 +24,25 @@ color_name_from_enum :: proc(color: Color) -> (value: string) {
 	return
 }
 
+@(deprecated="'print_color_name_guide' deprecated, use 'print_color_guide' instead")
+print_color_name_guide :: proc(group: string) {
+	grp: string
+	for g in group { //	temp to_lower
+		grp = tprintf("%v%v", grp, g >= 'A' && g <= 'Z' ? g + 32 : g)
+	}
+	switch grp {
+	case "all":                    print_color_guide(.all)
+	case "pink",      "pinks":     print_color_guide(.pinks)
+	case "purple",    "purples":   print_color_guide(.purples)
+	case "blue",      "blues":     print_color_guide(.blues)
+	case "green",     "greens":    print_color_guide(.greens)
+	case "yellow",    "yellows":   print_color_guide(.yellows)
+	case "orange",    "oranges":   print_color_guide(.oranges)
+	case "red",       "reds":      print_color_guide(.reds)
+	case "grayscale", "greyscale": print_color_guide(.grayscale)
+	}
+}
+
 ColorGroup :: enum {all, pinks, purples, blues, greens, yellows, oranges, reds, grayscale}
 
 print_color_guide :: proc(group: ColorGroup = .all) {
@@ -87,25 +106,6 @@ tolower :: proc (str: string) -> (out: string) {
 		out = tprintf("%v%v", out, s >= 'A' && s <= 'Z' ? s + 32 : s)
 	}
 	return
-}
-
-//	depricated, soon to be removed and replaced by print_color_guide
-print_color_name_guide :: proc(group: string) {
-	grp: string
-	for g in group { //	temp to_lower
-		grp = tprintf("%v%v", grp, g >= 'A' && g <= 'Z' ? g + 32 : g)
-	}
-	switch grp {
-	case "all":                    print_color_guide(.all)
-	case "pink",      "pinks":     print_color_guide(.pinks)
-	case "purple",    "purples":   print_color_guide(.purples)
-	case "blue",      "blues":     print_color_guide(.blues)
-	case "green",     "greens":    print_color_guide(.greens)
-	case "yellow",    "yellows":   print_color_guide(.yellows)
-	case "orange",    "oranges":   print_color_guide(.oranges)
-	case "red",       "reds":      print_color_guide(.reds)
-	case "grayscale", "greyscale": print_color_guide(.grayscale)
-	}
 }
 
 //	Pinks

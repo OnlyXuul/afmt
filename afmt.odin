@@ -10,24 +10,16 @@ import "base:intrinsics"
 import "core:unicode/utf8"
 
 
-//	Depricated names of structures given aliases for now (temporary)
-
-
-ANSI_Format   :: ANSI
-ANSI_3Bit     :: ANSI3
-ANSI_4Bit     :: ANSI4
-ANSI_8Bit     :: ANSI8
-ANSI_24Bit    :: ANSI24
-FG_Color_3Bit :: FGColor3
-BG_Color_3Bit :: BGColor3
-FG_Color_4Bit :: FGColor4
-BG_Color_4Bit :: BGColor4
-
 //	Aliases of all the below structures to help reduce syntax
 //	This is here for advanced users who are already familiar with the types
 
+A3  :: ANSI3
+A4  :: ANSI4
+A8  :: ANSI8
+A24 :: ANSI24
 
 AT  :: Attribute
+
 FG3 :: FGColor3
 BG3 :: BGColor3
 FG4 :: FGColor4
