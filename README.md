@@ -1,10 +1,9 @@
 # afmt
 Odin printing library with support for ANSI colors and attributes. The goal is to mirror the existing core:fmt library to provide a seamless alternative.
 
-License
-https://github.com/odin-lang/Odin/blob/master/LICENSE
-
-afmt (a for ansi) is designed to be used as a collection.<br>
+* afmt (a for ansi) is designed to be used as a collection.
+* Reference examples.odin for idiomatic patterns for each procedure in the library.
+* License: https://github.com/odin-lang/Odin/blob/master/LICENSE
 
 ## Steps
 1. Clone afmt into odin/shared folder:
