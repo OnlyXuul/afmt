@@ -9,7 +9,7 @@ afmt (a for ansi) is designed to be used as a collection.<br>
 ## Steps
 1. Clone afmt into odin/shared folder:
    ```bash
-   cd odin/shared
+   cd cd $(odin root)shared
    git clone https://github.com/OnlyXuul/afmt.git
    ```
 2. To use the library, add to the top of your project file:
@@ -18,7 +18,7 @@ afmt (a for ansi) is designed to be used as a collection.<br>
    ```
 3. To run the examples for usage examples:
    ```bash
-   cd odin/shared/afmt/examples
+   cd cd $(odin root)shared/afmt/examples
    odin run .
    ```
 
