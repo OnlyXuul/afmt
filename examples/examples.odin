@@ -2,7 +2,8 @@ package examples
 
 import "core:strings"
 
-import "shared:afmt"		// replace with location of library
+import "../../afmt"		// replace with location of library
+//import "shared:afmt"
 
 main :: proc() {
 
@@ -395,21 +396,28 @@ afmt.println()
 	afmt.println()
 
 {
+	//	If on Windows, may need to set terminal input/output CODEPAGE to .UTF8 to see the below symbols
+	//	Font also affects how these symbols are supported. I use Nerd Fonts.
+	//	For me, on a fresh install of Windows 11 25H2, the terminal CODEPAGE was set to IBM437
+	when ODIN_OS == .Windows {
+		afmt.set_utf8_terminal() // sets .UTF8
+		defer afmt.reset_utf8_terminal() // resets to original CODEPAGE
+	}
 	//	A bit of geeking out for funs. Playing around with possibilities...
-	symbol := [11]string{"", "☉", "☿", "♀","♁", "♂", "♃", "♄", "♅", "♆", "♇"}
+	symbol := [11]string{"", "𓇳", "☿", "♀","♁", "♂", "♃", "♄", "♅", "♆", "♇"}
 	
 	solar_system := [11][]string{
-		{" Objects", "", "10^24 kg ",  "Radius km ", "9.87 m/s^2 ", "To Sol km "},
-		{" Sol",     "", "1,988,000 ", "695,700 ",   "27.94 ",      "0 ",},
-		{" Mercury", "", "0.330103 ",  "2,440 ",     "0.38 ",       "57,910,000 "},
-		{" Venus",   "", "4.86731 ",   "6051 ",      "0.90 ",       "108,200,000 "},
-		{" Earth",   "", "5.97217 ",   "6371 ",      "1.00 ",       "149,600,000 "},
-		{" Mars",    "", "0.641691 ",  "3389 ",      "0.38 ",       "227,900,000 "},
-		{" Jupiter", "", "1898.125 ",  "69,911 ",    "2.53 ",       "778,500,000 "},
-		{" Saturn",  "", "568.317 ",   "58,232 ",    "1.07 ",       "1,429,000,000 "},
-		{" Uranus",  "", "86.8099 ",   "25,362 ",    "0.89 ",       "2,871,000,000 "},
-		{" Neptune", "", "102.4092 ",  "24,622 ",    "1.14 ",       "4,495,000,000 "},
-		{" Pluto",   "", "0.01303 ",   "1188 ",      "0.06 ",       "5,906,000,000 "},
+		{" Objects", "",  "10^24 kg ",  "Radius km ", "9.87 m/s^2 ",     "To Sol km "},
+		{" Sol",     "", "1,988,000 ",    "695,700 ",      "27.94 ",            "0 ",},
+		{" Mercury", "",     "0.330 ",      "2,440 ",       "0.38 ",    "57,910,000 "},
+		{" Venus",   "",     "4.867 ",      "6,051 ",       "0.90 ",   "108,200,000 "},
+		{" Earth",   "",     "5.972 ",      "6,371 ",       "1.00 ",   "149,600,000 "},
+		{" Mars",    "",     "0.645 ",      "3,389 ",       "0.38 ",   "227,900,000 "},
+		{" Jupiter", "", "1,898.125 ",     "69,911 ",       "2.53 ",   "778,500,000 "},
+		{" Saturn",  "",   "568.317 ",     "58,232 ",       "1.07 ", "1,429,000,000 "},
+		{" Uranus",  "",    "86.810 ",     "25,362 ",       "0.89 ", "2,871,000,000 "},
+		{" Neptune", "",   "102.409 ",     "24,622 ",       "1.14 ", "4,495,000,000 "},
+		{" Pluto",   "",     "0.013 ",      "1,188 ",       "0.06 ", "5,906,000,000 "},
 	}
 
 	rows := [11]afmt.ANSI24 {
@@ -591,6 +599,7 @@ afmt.println()
 		ansi.fg = afmt.white
 	}
 
+	afmt.println("Black is chosen for the below two lines because black_ratio > white_ratio")
 	afmt.printfln("%-33s%.8f", ansi, "white on orchid contrast ratio:", white_ratio)
 	afmt.printfln("%-33s%.8f", ansi, "black on orchid contrast ratio:", black_ratio)
 
@@ -640,7 +649,7 @@ afmt.println()
 	b := afmt.tset("-f[#turquoise]-a[underline]")
 	c := afmt.tset("-f[#mediumorchid]-a[no_underline]")
 
-	afmt.printfln("%v%v %v%v%v %v%v", a, "hellope", b, "world", c, "and all the peeps.", afmt.RESET /* or afmt.RST */)
+	afmt.printfln("%v%v %v%v%v %v%v", a, "hellope", b, "world", c, "and all the peeps!!", afmt.RESET /* or afmt.RST */)
 }
 	afmt.println()
 	//	afmt uses context.temp_allocator to build ANSI sequences ...
