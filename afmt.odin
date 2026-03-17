@@ -214,10 +214,20 @@ afmt :: proc(afmt: ANSI, fmt: string) -> string {
 		}
 	}
 
+	//	Note: terminal.color_depth check removed for now due to unreliability
+	//	For Windows:
+	//	Check clean install with PSVersion 5.1.26100.7920 and latest 7.5.4 - CMD 10.0.26200.8037
+	//	..\core\terminal\terminal_windows.odin sets ENABLE_VIRTUAL_TERMINAL_PROCESSING and checks for success
+	//	Then it arbitrarily sets .Four_Bit, but Windows supports .True_Color out of the box
+	//	for base and latest versions of Powershell and base version of cmd when ENABLE_VIRTUAL_TERMINAL_PROCESSING is set
+	//	This takes advantage of the ENABLE_VIRTUAL_TERMINAL_PROCESSING being set, and then redirects to correct depth
+	//	For Unix:
+	//	Several terminal emulators are set to .Three_Bit if a case statement is reached, but may not be acurate.
+
 	// Process color for ANSI variants
 	if terminal.color_enabled {
 		switch a in afmt {
-		case ANSI3: if terminal.color_depth >= .Three_Bit {
+		case ANSI3: /* if terminal.color_depth >= .Three_Bit */ {
 				if a.fg != .NONE {
 					delimit(&acs, acs, u8(a.fg))
 				}
@@ -225,7 +235,7 @@ afmt :: proc(afmt: ANSI, fmt: string) -> string {
 					delimit(&acs, acs, u8(a.bg))
 				}
 			}
-		case ANSI4: if terminal.color_depth >= .Four_Bit {
+		case ANSI4: /* if terminal.color_depth >= .Four_Bit */ {
 				if a.fg != .NONE {
 					delimit(&acs, acs, u8(a.fg))
 				}
@@ -233,7 +243,7 @@ afmt :: proc(afmt: ANSI, fmt: string) -> string {
 					delimit(&acs, acs, u8(a.bg))
 				}
 			}
-		case ANSI8: if terminal.color_depth >= .Eight_Bit {
+		case ANSI8: /* if terminal.color_depth >= .Eight_Bit */ {
 				if a.fg != nil {
 					delimit(&acs, acs, ansi.FG_COLOR_8_BIT, a.fg)
 				}
@@ -241,7 +251,7 @@ afmt :: proc(afmt: ANSI, fmt: string) -> string {
 					delimit(&acs, acs, ansi.BG_COLOR_8_BIT, a.bg)
 				}
 			}
-		case ANSI24: if terminal.color_depth >= .True_Color {
+		case ANSI24: /* if terminal.color_depth >= .True_Color */ {
 				if a.fg != nil {
 					delimit(&acs, acs, ansi.FG_COLOR_24_BIT, a.fg.(RGB).r, a.fg.(RGB).g, a.fg.(RGB).b)
 				}
@@ -1286,6 +1296,15 @@ aset_from_string :: proc(fmt: string, allocator := context.allocator) -> string 
 
 //	Utilities
 
+
+//  Sets Windows terminal CODEPAGE to .UTF8 for both input and ouput
+set_utf8_terminal :: proc() {
+	_set_utf8_terminal()
+}
+//  Resets Windows terminal to original CODEPAGE from last run of set_utf8_terminal()
+reset_utf8_terminal :: proc() {
+	_reset_utf8_terminal()
+}
 
 //	Shortcut for defining N columns in a row
 //
