@@ -42,9 +42,9 @@ main :: proc() {
 	//	Then refine it to the specific struct definition of ANSI3 (3Bit)
 	ansi: afmt.ANSI
 	ansi = afmt.ANSI3 {
-  	fg = .FG_BLUE,            // foreground
-  	bg = .BG_BLACK,           // background
-  	at = {.BOLD, .UNDERLINE}, // atributes
+  	fg = .blue,            // foreground
+  	bg = .black,           // background
+  	at = {.bold, .underline}, // atributes
 	}
 	afmt.println(ansi, "01. Hellope from println using ANSI3")
 
@@ -63,7 +63,7 @@ main :: proc() {
 {
 	//	Not all fields are required. Empty fields are ignored.
 	ansi := afmt.ANSI4 {
-		fg = .FG_BRIGHT_BLUE,
+		fg = .bright_blue,
 	}
 	afmt.println(ansi, "02. Hellope from println using ANSI4")
 
@@ -75,7 +75,7 @@ main :: proc() {
 	//	8bit uses 0-255 for colors
 	ansi := afmt.ANSI8 {
 		fg = 12,
-		at = {.ITALIC},
+		at = {.italic},
 	}
 	afmt.println(ansi, "03. Hellope from println using ANSI8")
 
@@ -91,7 +91,7 @@ main :: proc() {
 	ansi := afmt.ANSI24 {
 		fg = afmt.RGB{77, 196, 255}, // ANSI colors can be nil, so a type must be specified
 		bg = [3]u8{35, 52, 71},      // afmt.RGB is just an alias for [3]u8
-		at = {.UNDERLINE},
+		at = {.underline},
 	}
 
 	afmt.printfln("%2i. %-8s%-6s%s", ansi, 4, "Hellope", "World", "from printfln using ANSI24")
@@ -106,8 +106,8 @@ main :: proc() {
 	//
 {
 	//	Say we want a format for printing errors and warnings, that excepts dynamic input
-	ansi_e := afmt.ANSI4{ fg = .FG_RED }
-	ansi_w := afmt.ANSI4{ fg = .FG_YELLOW }
+	ansi_e := afmt.ANSI4{ fg = .red }
+	ansi_w := afmt.ANSI4{ fg = .yellow }
 
 	//	Create an ansi format with color and store %v variable for future use
 	error := afmt.tprintf("%s%s", ansi_e, "Error: ", "%v")
@@ -122,12 +122,12 @@ main :: proc() {
 {
 	//	Do we want to create a format that has 2 different ansi formats in one line?
 	ansi01 := afmt.ANSI4{
-		fg = .FG_RED,
-		at = {.BOLD, .UNDERLINE},
+		fg = .red,
+		at = {.bold, .underline},
 	}
   
 	ansi02 := afmt.ANSI4{
-		fg = .FG_MAGENTA,
+		fg = .magenta,
 	}
 
 	string01 := afmt.tprint(ansi01, "Error:")
@@ -205,16 +205,16 @@ main :: proc() {
 
 	tbl := Table {
 		col_label = {
-			{fg = .FG_BLACK, bg = .BG_YELLOW,  at = {.BOLD}},
-			{fg = .FG_BLACK, bg = .BG_GREEN,   at = {.BOLD}},
-			{fg = .FG_BLACK, bg = .BG_BLUE,    at = {.BOLD}},
-			{fg = .FG_BLACK, bg = .BG_MAGENTA, at = {.BOLD}},
+			{fg = .black, bg = .yellow,  at = {.bold}},
+			{fg = .black, bg = .green,   at = {.bold}},
+			{fg = .black, bg = .blue,    at = {.bold}},
+			{fg = .black, bg = .magenta, at = {.bold}},
 		},
 		col_data = {
-			{fg = .FG_BLACK,   bg = .BG_BRIGHT_YELLOW, at = {.BOLD}},
-			{fg = .FG_GREEN,   bg = .BG_BLACK},
-			{fg = .FG_BLUE,    bg = .BG_BLACK},
-			{fg = .FG_MAGENTA, bg = .BG_BLACK},
+			{fg = .black,   bg = .bright_yellow, at = {.bold}},
+			{fg = .green,   bg = .black},
+			{fg = .blue,    bg = .black},
+			{fg = .magenta, bg = .black},
 		},
 		args = { "%-10v", "%-20v", "%-20v", "%-20v" },
 	}
@@ -257,16 +257,16 @@ main :: proc() {
 
 	tbl := Table {
 		col_title = {
-			{fg = .FG_BLACK, bg = .BG_YELLOW,  at = {.BOLD}},
-			{fg = .FG_BLACK, bg = .BG_GREEN,   at = {.BOLD}},
-			{fg = .FG_BLACK, bg = .BG_BLUE,    at = {.BOLD}},
-			{fg = .FG_BLACK, bg = .BG_MAGENTA, at = {.BOLD}},
+			{fg = .black, bg = .yellow,  at = {.bold}},
+			{fg = .black, bg = .green,   at = {.bold}},
+			{fg = .black, bg = .blue,    at = {.bold}},
+			{fg = .black, bg = .magenta, at = {.bold}},
 		},
 		col_data = {
-			{fg = .FG_BLACK,   bg = .BG_BRIGHT_YELLOW, at = {.BOLD}},
-			{fg = .FG_GREEN,   bg = .BG_BLACK},
-			{fg = .FG_BLUE,    bg = .BG_BLACK},
-			{fg = .FG_MAGENTA, bg = .BG_BLACK},
+			{fg = .black,   bg = .bright_yellow, at = {.bold}},
+			{fg = .green,   bg = .black},
+			{fg = .blue,    bg = .black},
+			{fg = .magenta, bg = .black},
 		},
 		args = { "%-10v", "%-20v", "%-20v", "%-20v" },
 	}
@@ -350,14 +350,14 @@ main :: proc() {
 
 	//	Create a label row with 4 columns
 	cols_title := [4]afmt.Column(afmt.ANSI24) {
-		{10, .CENTER, {fg = afmt.black, bg = afmt.khaki,      at = {.BOLD}}},
-		{20, .LEFT,   {fg = afmt.black, bg = afmt.lightgreen, at = {.BOLD}}},
-		{20, .LEFT,   {fg = afmt.black, bg = afmt.skyblue,    at = {.BOLD}}},
-		{20, .LEFT,   {fg = afmt.black, bg = afmt.orchid,     at = {.BOLD}}},
+		{10, .CENTER, {fg = afmt.black, bg = afmt.khaki,      at = {.bold}}},
+		{20, .LEFT,   {fg = afmt.black, bg = afmt.lightgreen, at = {.bold}}},
+		{20, .LEFT,   {fg = afmt.black, bg = afmt.skyblue,    at = {.bold}}},
+		{20, .LEFT,   {fg = afmt.black, bg = afmt.orchid,     at = {.bold}}},
 	}
 	//	Create a row for data records with 4 columns to match label
 	cols_data := [4]afmt.Column(afmt.ANSI24) {
-		{10, .CENTER, {fg = afmt.black,      bg = afmt.khaki + 15, at = {.BOLD}}},
+		{10, .CENTER, {fg = afmt.black,      bg = afmt.khaki + 15, at = {.bold}}},
 		{20, .LEFT,   {fg = afmt.lightgreen, bg = afmt.black}},
 		{20, .LEFT,   {fg = afmt.skyblue,    bg = afmt.black}},
 		{20, .LEFT,   {fg = afmt.orchid,     bg = afmt.black}},
@@ -377,7 +377,7 @@ afmt.println()
 	//	1D is treated as a single row, and 2D as multiple rows
 	//	There is also an optional parameter to specific precision which only applies to floats
 
-	cols_label := [4]afmt.Column(afmt.ANSI24) {0..<4 = {7, .CENTER, {fg = afmt.deeppink, bg = afmt.black, at = {.BOLD, .UNDERLINE}}}}
+	cols_label := [4]afmt.Column(afmt.ANSI24) {0..<4 = {7, .CENTER, {fg = afmt.deeppink, bg = afmt.black, at = {.bold, .underline}}}}
 	cols_data  := [4]afmt.Column(afmt.ANSI24) {0..<4 = {7, .CENTER, {fg = afmt.lime, bg = afmt.black}}}
 
 	label := [4]string{"x", "y", "z", "w"}
@@ -421,7 +421,7 @@ afmt.println()
 	}
 
 	rows := [11]afmt.ANSI24 {
-		{afmt.orchid+10, afmt.black, {.UNDERLINE, .OVERLINED}}, // title
+		{afmt.orchid+10, afmt.black, {.underline, .overlined}}, // title
 		{afmt.RGB{255, 222, 033}, afmt.black+15, {}}, // Sol
 		{afmt.RGB{169, 169, 169}, afmt.black+15, {}}, // Mercury
 		{afmt.RGB{255, 199, 074}, afmt.black+15, {}}, // Venus
@@ -466,7 +466,7 @@ afmt.println()
 	//  Saturation = 1 (100%) and Luminance = 0.5 (50%) are fixed values to get the main colors
 	afmt.println("-a[bold]", "24Bit RGB Color Spectrum Bar")
 	hsl  := [3]f64{0, 1, .5}
-	ansi := afmt.ANSI24{at = {.INVERT}}
+	ansi := afmt.ANSI24{at = {.invert}}
 	//	Set an iteration factor to something sensible
 	//	i.e. greater than 0 and less than 360 (degrees)
 	//	Maybe we want 42 colors? Use decimals to enforce precision
@@ -499,7 +499,7 @@ afmt.println()
 {
 	//	Having some fun with the above concept
 	text := "O'Doyle ... I mean, Odin rules!!!"
-	ansi := afmt.ANSI24{bg = afmt.RGB{0,0,0}, at={.BOLD}}
+	ansi := afmt.ANSI24{bg = afmt.RGB{0,0,0}, at={.bold}}
 	hsl  := [3]f64{0, 1, .5}
 	hfactor := 360.000/f64(len(text))
 	for t in text {
@@ -588,7 +588,7 @@ afmt.println()
 {
 	//	Need to determine the contrast ratio of 2 colors to decide which is best to combine?
 	//	This results in a value ranging from 1:1 (no contrast at all) to 21:1 (the highest possible contrast)
-	ansi := afmt.ANSI24{bg = afmt.orchid, at = {.BOLD}}
+	ansi := afmt.ANSI24{bg = afmt.orchid, at = {.bold}}
 
 	black_ratio := afmt.contrast_ratio(afmt.black, afmt.orchid)
 	white_ratio := afmt.contrast_ratio(afmt.white, afmt.orchid)
