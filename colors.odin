@@ -4,6 +4,7 @@ import "core:reflect"
 
 //	Colors are arranged by category and hue, which means they are not alphabetical.
 //	Sorry for that
+//	based on https://en.wikipedia.org/wiki/Web_colors#X11_color_names
 
 
 //	Get color name from RGB value, if there is a match.
@@ -24,545 +25,610 @@ color_name_from_enum :: proc(color: Color) -> (value: string) {
 	return
 }
 
-@(deprecated="'print_color_name_guide' deprecated, use 'print_color_guide' instead")
-print_color_name_guide :: proc(group: string) {
-	grp: string
-	for g in group { //	temp to_lower
-		grp = tprintf("%v%v", grp, g >= 'A' && g <= 'Z' ? g + 32 : g)
-	}
-	switch grp {
-	case "all":                    print_color_guide(.all)
-	case "pink",      "pinks":     print_color_guide(.pinks)
-	case "purple",    "purples":   print_color_guide(.purples)
-	case "blue",      "blues":     print_color_guide(.blues)
-	case "green",     "greens":    print_color_guide(.greens)
-	case "yellow",    "yellows":   print_color_guide(.yellows)
-	case "orange",    "oranges":   print_color_guide(.oranges)
-	case "red",       "reds":      print_color_guide(.reds)
-	case "grayscale", "greyscale": print_color_guide(.grayscale)
-	}
+rune_upper :: proc(r: rune) -> rune {
+	return r >= 'a' && r <= 'z' ? r ~ (1 << 5) : r
 }
 
-ColorGroup :: enum {all, pinks, purples, blues, greens, yellows, oranges, reds, grayscale}
-
-print_color_guide :: proc(group: ColorGroup = .all) {
-	range: [2]int
-	switch group {
-	case .all:       range = {000, 139}
-	case .pinks:     range = {000, 013}
-	case .purples:   range = {014, 021}
-	case .blues:     range = {022, 054}
-	case .greens:    range = {055, 079}
-	case .yellows:   range = {080, 096}
-	case .oranges:   range = {097, 114}
-	case .reds:      range = {115, 130}
-	case .grayscale: range = {131, 139}
+print_color_guide :: proc(groups: bit_set[Color_Group] = {.all}, bg := true) {
+	groups := groups
+	if .all in groups || groups == nil { 
+		for cg in Color_Group { groups += {cg} }
+		groups -= {.all}
 	}
 
-	width := [4]u8 {7, 22, 13, 18}
-	label := [4]Column(ANSI24) {
-		{width[0], .CENTER, {fg = black, bg = silver, at = {.BOLD}}},
-		{width[1], .LEFT,   {fg = black, bg = lightgray, at = {.BOLD}}},
-		{width[2], .CENTER, {fg = black, bg = silver, at = {.BOLD}}},
-		{width[3], .CENTER, {fg = black, bg = lightgray, at = {.BOLD}}},
-	}
-	cols := [4]Column(ANSI24) {
-		{width[0], .CENTER, {fg = black, at = {.BOLD}}},
-		{width[1], .LEFT,   {fg = gainsboro, bg = black}},
-		{width[2], .CENTER, {fg = gainsboro, bg = black}},
-		{width[3], .CENTER, {fg = gainsboro, bg = black}},
-	}
-
-	for r in range[0]..=range[1] {
-		switch r {
-		case 000: printrow(label, "index", " Pinks",     "R   G   B", " H    S    L")
-		case 014: printrow(label, "index", " Purples",   "R   G   B", " H    S    L")
-		case 022: printrow(label, "index", " Blues",     "R   G   B", " H    S    L")
-		case 055: printrow(label, "index", " Greens",    "R   G   B", " H    S    L")
-		case 080: printrow(label, "index", " Yellows",   "R   G   B", " H    S    L")
-		case 097: printrow(label, "index", " Oranges",   "R   G   B", " H    S    L")
-		case 115: printrow(label, "index", " Reds",      "R   G   B", " H    S    L")
-		case 131: printrow(label, "index", " Grayscale", "R   G   B", " H    S    L")
+	width := [3]u8 {22, 13, 18}
+	label: [3]Column(ANSI24)
+	if bg {
+		label = [3]Column(ANSI24) {
+			{width[0], .LEFT,   {black, darkgray, {.bold}}},
+			{width[1], .CENTER, {black, gray,     {.bold}}},
+			{width[2], .CENTER, {black, darkgray, {.bold}}},
 		}
-		e := Color(r)
-		c := color[e]
-		cols[0].ansi.fg = contrast_ratio(c, black) > contrast_ratio(c, white) ? black : white
-		cols[0].ansi.bg = c
-		cols[1].ansi.bg = r % 2 == 0 ? black : black + 25
-		cols[2].ansi.bg = r % 2 == 0 ? black : black + 25
-		//cols[3].ansi.bg = r % 2 == 0 ? black : black + 25
-		cols[3].ansi = cols[0].ansi
-		idx  := tprintf("%3i", r)
-		name := tprintf(" %s", color_name_from_enum(e))
-		rgb  := tprintf("%3i %3i %3i", c.r, c.g, c.b)
-		hsl_ := hsl(c)
-		hsls := tprintf("%6.2f %.2f %.2f", hsl_[0], hsl_[1], hsl_[2])
-		printrow(cols, idx, name, rgb, hsls)
+	} else {
+		label = [3]Column(ANSI24) {
+			{width[0], .LEFT,   {black, lightgray, {.bold}}},
+			{width[1], .CENTER, {black, silver,    {.bold}}},
+			{width[2], .CENTER, {black, lightgray, {.bold}}},
+		}
+	}
+	cols := [3]Column(ANSI24) {
+		{width[0], .LEFT,   {}},
+		{width[1], .CENTER, {}},
+		{width[2], .CENTER, {}},
+	}
+
+	for group in groups {
+		range := color_group_range[group]
+		name, _ := reflect.enum_name_from_value(group)
+		name = tprintf(" %r%s Group", rune_upper(rune(name[0])), name[1:])
+		printrow(label, name,   "R   G   B", " H    S    L")
+		for id in Color(range[0]) ..= Color(range[1]) {
+			c := color[id]
+			if bg {
+				cols[0].ansi.fg = contrast_ratio(c, black) > contrast_ratio(c, white) ? black : white
+				cols[0].ansi.bg = c
+			} else {
+				cols[0].ansi.bg = black
+				cols[0].ansi.fg = c
+			}
+			cols[1].ansi = cols[0].ansi
+			cols[2].ansi = cols[0].ansi
+			name := tprintf(" %s", color_name_from_enum(id))
+			rgb  := tprintf("%3i %3i %3i", c.r, c.g, c.b)
+			hsl_ := hsl(c)
+			hsls := tprintf("%6.2f %.2f %.2f", hsl_[0], hsl_[1], hsl_[2])
+			printrow(cols, name, rgb, hsls)
+		}
 	}
 }
 
-tolower :: proc (str: string) -> (out: string) {
-	for s in str {
-		out = tprintf("%v%v", out, s >= 'A' && s <= 'Z' ? s + 32 : s)
+print_color_guide_ex :: proc(groups: bit_set[Color_Group] = {.all}, bg := true, test_color := Color.black) {
+	groups := groups
+	if .all in groups || groups == nil { 
+		for cg in Color_Group { groups += {cg} }
+		groups -= {.all}
 	}
-	return
+
+	width := [3]u8 {22, 13, 18}
+	label := [3]Column(ANSI24) {
+		{width[0], .LEFT,   {black, darkgray, {.bold}}},
+		{width[1], .CENTER, {black, gray,     {.bold}}},
+		{width[2], .CENTER, {black, darkgray, {.bold}}},
+	}
+	cols := [3]Column(ANSI24) {
+		{width[0], .LEFT,   {}},
+		{width[1], .CENTER, {}},
+		{width[2], .CENTER, {}},
+	}
+
+	for group in groups {
+		range := color_group_range[group]
+		name, _ := reflect.enum_name_from_value(group)
+		name = tprintf(" %r%s Group", rune_upper(rune(name[0])), name[1:])
+		printrow(label, name,   "R   G   B", " H    S    L")
+		for id in Color(range[0]) ..= Color(range[1]) {
+			c := color[id]
+			if bg {
+				cols[0].ansi.fg = color[test_color]
+				cols[0].ansi.bg = c
+			} else {
+				cols[0].ansi.bg = color[test_color]
+				cols[0].ansi.fg = c
+			}
+			cols[1].ansi = cols[0].ansi
+			cols[2].ansi = cols[0].ansi
+			name := tprintf(" %s", color_name_from_enum(id))
+			rgb  := tprintf("%3i %3i %3i", c.r, c.g, c.b)
+			hsl_ := hsl(c)
+			hsls := tprintf("%6.2f %.2f %.2f", hsl_[0], hsl_[1], hsl_[2])
+			printrow(cols, name, rgb, hsls)
+		}
+	}
 }
 
-//	Pinks
-lightpink            :: RGB { 255 , 182 , 193 }
-pink                 :: RGB { 255 , 192 , 203 }
-crimson              :: RGB { 220 , 020 , 060 }
-lavenderblush        :: RGB { 255 , 240 , 245 }
-palevioletred        :: RGB { 219 , 112 , 147 }
-hotpink              :: RGB { 255 , 105 , 180 }
-deeppink             :: RGB { 255 , 020 , 147 }
-mediumvioletred      :: RGB { 199 , 021 , 133 }
-orchid               :: RGB { 218 , 112 , 214 }
-thistle              :: RGB { 216 , 191 , 216 }
-plum                 :: RGB { 221 , 160 , 221 }
-violet               :: RGB { 238 , 130 , 238 }
-magenta              :: RGB { 255 , 000 , 255 }
-fuchsia              :: RGB { 255 , 000 , 255 }
+Color_Group :: enum u8 {
+	all,
+	pinks,
+	purples,
+	blues,
+	cyans,
+	greens,
+	yellows,
+	oranges,
+	reds,
+	browns,
+	whites,
+	grays,
+}
 
-//	Purples
-darkmagenta          :: RGB { 139 , 000 , 139 }
-purple               :: RGB { 128 , 000 , 128 }
-mediumorchid         :: RGB { 186 , 085 , 211 }
-darkviolet           :: RGB { 148 , 000 , 211 }
-darkorchid           :: RGB { 153 , 050 , 204 }
-indigo               :: RGB { 075 , 000 , 130 }
-blueviolet           :: RGB { 138 , 043 , 226 }
-mediumpurple         :: RGB { 147 , 112 , 219 }
+color_group_range := [Color_Group][2]Color {
+	.all     = all_range,
+	.pinks   = pinks_range,
+	.purples = purples_range,
+	.blues   = blues_range,
+	.cyans   = cyans_range,
+	.greens  = greens_range,
+	.yellows = yellows_range,
+	.oranges = oranges_range,
+	.reds    = reds_range,
+	.browns  = browns_range,
+	.whites  = whites_range,
+	.grays   = grays_range,
+}
 
-//	Blues
-mediumslateblue      :: RGB { 123 , 104 , 238 }
-slateblue            :: RGB { 106 , 090 , 205 }
-darkslateblue        :: RGB { 072 , 061 , 139 }
-ghostwhite           :: RGB { 248 , 248 , 255 }
-lavender             :: RGB { 230 , 230 , 250 }
-blue                 :: RGB { 000 , 000 , 255 }
-mediumblue           :: RGB { 000 , 000 , 205 }
-darkblue             :: RGB { 000 , 000 , 139 }
-navy                 :: RGB { 000 , 000 , 128 }
-midnightblue         :: RGB { 025 , 025 , 112 }
-royalblue            :: RGB { 065 , 105 , 225 }
-cornflowerblue       :: RGB { 100 , 149 , 237 }
-lightsteelblue       :: RGB { 176 , 196 , 222 }
-lightslategray       :: RGB { 119 , 136 , 153 }
-slategray            :: RGB { 112 , 128 , 144 }
-dodgerblue           :: RGB { 030 , 144 , 255 }
-aliceblue            :: RGB { 240 , 248 , 255 }
-steelblue            :: RGB { 070 , 130 , 180 }
-lightskyblue         :: RGB { 135 , 206 , 250 }
-skyblue              :: RGB { 135 , 206 , 235 }
-deepskyblue          :: RGB { 000 , 191 , 255 }
-lightblue            :: RGB { 173 , 216 , 230 }
-powderblue           :: RGB { 176 , 224 , 230 }
-cadetblue            :: RGB { 095 , 158 , 160 }
-darkturquoise        :: RGB { 000 , 206 , 209 }
-azure                :: RGB { 240 , 255 , 255 }
-lightcyan            :: RGB { 224 , 255 , 255 }
-paleturquoise        :: RGB { 175 , 238 , 238 }
-aqua                 :: RGB { 000 , 255 , 255 }
-cyan                 :: RGB { 000 , 255 , 255 }
-darkcyan             :: RGB { 000 , 139 , 139 }
-teal                 :: RGB { 000 , 128 , 128 }
-darkslategray        :: RGB { 047 , 079 , 079 }
+all_range     :: [2]Color { Color.mediumvioletred, Color.gainsboro }
+pinks_range   :: [2]Color { Color.mediumvioletred, Color.pink }
+purples_range :: [2]Color { Color.indigo,          Color.lavender }
+blues_range   :: [2]Color { Color.midnightblue,    Color.powderblue }
+cyans_range   :: [2]Color { Color.teal,            Color.lightcyan }
+greens_range  :: [2]Color { Color.darkgreen,       Color.palegreen }
+yellows_range :: [2]Color { Color.darkkhaki,       Color.lightyellow }
+oranges_range :: [2]Color { Color.orangered,       Color.orange }
+reds_range    :: [2]Color { Color.darkred,         Color.lightsalmon }
+browns_range  :: [2]Color { Color.maroon,          Color.cornsilk }
+whites_range  :: [2]Color { Color.mistyrose,       Color.white }
+grays_range   :: [2]Color { Color.black,           Color.gainsboro }
 
-//	Greens
-mediumturquoise      :: RGB { 072 , 209 , 204 }
-lightseagreen        :: RGB { 032 , 178 , 170 }
-turquoise            :: RGB { 064 , 224 , 208 }
-aquamarine           :: RGB { 127 , 255 , 212 }
-mediumaquamarine     :: RGB { 102 , 205 , 170 }
-mediumspringgreen    :: RGB { 000 , 250 , 154 }
-mintcream            :: RGB { 245 , 255 , 250 }
-springgreen          :: RGB { 000 , 255 , 127 }
-mediumseagreen       :: RGB { 060 , 179 , 113 }
-seagreen             :: RGB { 046 , 139 , 087 }
-honeydew             :: RGB { 240 , 255 , 240 }
-darkseagreen         :: RGB { 143 , 188 , 143 }
-palegreen            :: RGB { 152 , 251 , 152 }
-lightgreen           :: RGB { 144 , 238 , 144 }
-limegreen            :: RGB { 050 , 205 , 050 }
-lime                 :: RGB { 000 , 255 , 000 }
-forestgreen          :: RGB { 034 , 139 , 034 }
-green                :: RGB { 000 , 128 , 000 }
-darkgreen            :: RGB { 000 , 100 , 000 }
-lawngreen            :: RGB { 124 , 252 , 000 }
-chartreuse           :: RGB { 127 , 255 , 000 }
-greenyellow          :: RGB { 173 , 255 , 047 }
-darkolivegreen       :: RGB { 085 , 107 , 047 }
-yellowgreen          :: RGB { 154 , 205 , 050 }
-olivedrab            :: RGB { 107 , 142 , 035 }
-
-//	Yellows
-ivory                :: RGB { 255 , 255 , 240 }
-beige                :: RGB { 245 , 245 , 220 }
-lightyellow          :: RGB { 255 , 255 , 224 }
-lightgoldenrodyellow :: RGB { 250 , 250 , 210 }
-yellow               :: RGB { 255 , 255 , 000 }
-olive                :: RGB { 128 , 128 , 000 }
-darkkhaki            :: RGB { 189 , 183 , 107 }
-palegoldenrod        :: RGB { 238 , 232 , 170 }
-lemonchiffon         :: RGB { 255 , 250 , 205 }
-khaki                :: RGB { 240 , 230 , 140 }
-gold                 :: RGB { 255 , 215 , 000 }
-cornsilk             :: RGB { 255 , 248 , 220 }
-goldenrod            :: RGB { 218 , 165 , 032 }
-darkgoldenrod        :: RGB { 184 , 134 , 011 }
-floralwhite          :: RGB { 255 , 250 , 240 }
-oldlace              :: RGB { 253 , 245 , 230 }
-wheat                :: RGB { 245 , 222 , 179 }
-
-//	Oranges
-orange               :: RGB { 255 , 165 , 000 }
-moccasin             :: RGB { 255 , 228 , 181 }
-papayawhip           :: RGB { 255 , 239 , 213 }
-blanchedalmond       :: RGB { 255 , 235 , 205 }
-navajowhite          :: RGB { 255 , 222 , 173 }
-antiquewhite         :: RGB { 250 , 235 , 215 }
-tan                  :: RGB { 210 , 180 , 140 }
-burlywood            :: RGB { 222 , 184 , 135 }
-darkorange           :: RGB { 255 , 140 , 000 }
-bisque               :: RGB { 255 , 228 , 196 }
-linen                :: RGB { 250 , 240 , 230 }
-peru                 :: RGB { 205 , 133 , 063 }
-peachpuff            :: RGB { 255 , 218 , 185 }
-sandybrown           :: RGB { 244 , 164 , 096 }
-chocolate            :: RGB { 210 , 105 , 030 }
-saddlebrown          :: RGB { 139 , 069 , 019 }
-seashell             :: RGB { 255 , 245 , 238 }
-sienna               :: RGB { 160 , 082 , 045 }
-
-//	Reds
-lightsalmon          :: RGB { 255 , 160 , 122 }
-coral                :: RGB { 255 , 127 , 080 }
-orangered            :: RGB { 255 , 069 , 000 }
-darksalmon           :: RGB { 233 , 150 , 122 }
-tomato               :: RGB { 255 , 099 , 071 }
-salmon               :: RGB { 250 , 128 , 114 }
-mistyrose            :: RGB { 255 , 228 , 225 }
-lightcoral           :: RGB { 240 , 128 , 128 }
-snow                 :: RGB { 255 , 250 , 250 }
-rosybrown            :: RGB { 188 , 143 , 143 }
-indianred            :: RGB { 205 , 092 , 092 }
-red                  :: RGB { 255 , 000 , 000 }
-brown                :: RGB { 165 , 042 , 042 }
-firebrick            :: RGB { 178 , 034 , 034 }
-darkred              :: RGB { 139 , 000 , 000 }
-maroon               :: RGB { 128 , 000 , 000 }
-
-//	Grayscale
-white                :: RGB { 255 , 255 , 255 }
-whitesmoke           :: RGB { 245 , 245 , 245 }
-gainsboro            :: RGB { 220 , 220 , 220 }
-lightgray            :: RGB { 211 , 211 , 211 }
-silver               :: RGB { 192 , 192 , 192 }
-darkgray             :: RGB { 169 , 169 , 169 }
-gray                 :: RGB { 128 , 128 , 128 }
-dimgray              :: RGB { 105 , 105 , 105 }
-black                :: RGB { 000 , 000 , 000 }
+/*  Pinks                                 */
+mediumvioletred      :: RGB{ 199, 021, 133 }
+deeppink             :: RGB{ 255, 020, 147 }
+palevioletred        :: RGB{ 219, 112, 147 }
+hotpink              :: RGB{ 255, 105, 180 }
+lightpink            :: RGB{ 255, 182, 193 }
+pink                 :: RGB{ 255, 192, 203 }
+/*  Purples                               */
+indigo               :: RGB{ 075, 000, 130 }
+rebeccapurple        :: RGB{ 102, 051, 153 }
+purple               :: RGB{ 128, 000, 128 }
+darkmagenta          :: RGB{ 139, 000, 139 }
+darkviolet           :: RGB{ 148, 000, 211 }
+darkslateblue        :: RGB{ 072, 061, 139 }
+blueviolet           :: RGB{ 138, 043, 226 }
+darkorchid           :: RGB{ 153, 050, 204 }
+fuchsia              :: RGB{ 255, 000, 255 }
+magenta              :: RGB{ 255, 000, 255 }
+slateblue            :: RGB{ 106, 090, 205 }
+mediumslateblue      :: RGB{ 123, 104, 238 }
+mediumorchid         :: RGB{ 186, 085, 211 }
+mediumpurple         :: RGB{ 147, 112, 219 }
+orchid               :: RGB{ 218, 112, 214 }
+violet               :: RGB{ 238, 130, 238 }
+plum                 :: RGB{ 221, 160, 221 }
+thistle              :: RGB{ 216, 191, 216 }
+lavender             :: RGB{ 230, 230, 250 }
+/*  Blues                                 */
+midnightblue         :: RGB{ 025, 025, 112 }
+navy                 :: RGB{ 000, 000, 128 }
+darkblue             :: RGB{ 000, 000, 139 }
+mediumblue           :: RGB{ 000, 000, 205 }
+blue                 :: RGB{ 000, 000, 255 }
+royalblue            :: RGB{ 065, 105, 225 }
+steelblue            :: RGB{ 070, 130, 180 }
+dodgerblue           :: RGB{ 030, 144, 255 }
+deepskyblue          :: RGB{ 000, 191, 255 }
+cornflowerblue       :: RGB{ 100, 149, 237 }
+skyblue              :: RGB{ 135, 206, 235 }
+lightskyblue         :: RGB{ 135, 206, 250 }
+lightsteelblue       :: RGB{ 176, 196, 222 }
+lightblue            :: RGB{ 173, 216, 230 }
+powderblue           :: RGB{ 176, 224, 230 }
+/*  Cyans                                 */
+teal                 :: RGB{ 000, 128, 128 }
+darkcyan             :: RGB{ 000, 139, 139 }
+lightseagreen        :: RGB{ 032, 178, 170 }
+cadetblue            :: RGB{ 095, 158, 160 }
+darkturquoise        :: RGB{ 000, 206, 209 }
+mediumturquoise      :: RGB{ 072, 209, 204 }
+turquoise            :: RGB{ 064, 224, 208 }
+aqua                 :: RGB{ 000, 255, 255 }
+cyan                 :: RGB{ 000, 255, 255 }
+aquamarine           :: RGB{ 127, 255, 212 }
+paleturquoise        :: RGB{ 175, 238, 238 }
+lightcyan            :: RGB{ 224, 255, 255 }
+/*  Greens                                */
+darkgreen            :: RGB{ 000, 100, 000 }
+green                :: RGB{ 000, 128, 000 }
+darkolivegreen       :: RGB{ 085, 107, 047 }
+forestgreen          :: RGB{ 034, 139, 034 }
+seagreen             :: RGB{ 046, 139, 087 }
+olive                :: RGB{ 128, 128, 000 }
+olivedrab            :: RGB{ 107, 142, 035 }
+mediumseagreen       :: RGB{ 060, 179, 113 }
+limegreen            :: RGB{ 050, 205, 050 }
+lime                 :: RGB{ 000, 255, 000 }
+springgreen          :: RGB{ 000, 255, 127 }
+mediumspringgreen    :: RGB{ 000, 250, 154 }
+darkseagreen         :: RGB{ 143, 188, 143 }
+mediumaquamarine     :: RGB{ 102, 205, 170 }
+yellowgreen          :: RGB{ 154, 205, 050 }
+lawngreen            :: RGB{ 124, 252, 000 }
+chartreuse           :: RGB{ 127, 255, 000 }
+lightgreen           :: RGB{ 144, 238, 144 }
+greenyellow          :: RGB{ 173, 255, 047 }
+palegreen            :: RGB{ 152, 251, 152 }
+/*  Yellows                               */
+darkkhaki            :: RGB{ 189, 183, 107 }
+gold                 :: RGB{ 255, 215, 000 }
+khaki                :: RGB{ 240, 230, 140 }
+peachpuff            :: RGB{ 255, 218, 185 }
+yellow               :: RGB{ 255, 255, 000 }
+palegoldenrod        :: RGB{ 238, 232, 170 }
+moccasin             :: RGB{ 255, 228, 181 }
+papayawhip           :: RGB{ 255, 239, 213 }
+lightgoldenrodyellow :: RGB{ 250, 250, 210 }
+lemonchiffon         :: RGB{ 255, 250, 205 }
+lightyellow          :: RGB{ 255, 255, 224 }
+/*  Oranges                               */
+orangered            :: RGB{ 255, 069, 000 }
+tomato               :: RGB{ 255, 099, 071 }
+darkorange           :: RGB{ 255, 140, 000 }
+coral                :: RGB{ 255, 127, 080 }
+orange               :: RGB{ 255, 165, 000 }
+/*  Reds                                  */
+darkred              :: RGB{ 139, 000, 000 }
+red                  :: RGB{ 255, 000, 000 }
+firebrick            :: RGB{ 178, 034, 034 }
+crimson              :: RGB{ 220, 020, 060 }
+indianred            :: RGB{ 205, 092, 092 }
+lightcoral           :: RGB{ 240, 128, 128 }
+salmon               :: RGB{ 250, 128, 114 }
+darksalmon           :: RGB{ 233, 150, 122 }
+lightsalmon          :: RGB{ 255, 160, 122 }
+/*  Browns                                */
+maroon               :: RGB{ 128, 000, 000 }
+brown                :: RGB{ 165, 042, 042 }
+saddlebrown          :: RGB{ 139, 069, 019 }
+sienna               :: RGB{ 160, 082, 045 }
+chocolate            :: RGB{ 210, 105, 030 }
+darkgoldenrod        :: RGB{ 184, 134, 011 }
+peru                 :: RGB{ 205, 133, 063 }
+rosybrown            :: RGB{ 188, 143, 143 }
+goldenrod            :: RGB{ 218, 165, 032 }
+sandybrown           :: RGB{ 244, 164, 096 }
+tan                  :: RGB{ 210, 180, 140 }
+burlywood            :: RGB{ 222, 184, 135 }
+wheat                :: RGB{ 245, 222, 179 }
+navajowhite          :: RGB{ 255, 222, 173 }
+bisque               :: RGB{ 255, 228, 196 }
+blanchedalmond       :: RGB{ 255, 235, 205 }
+cornsilk             :: RGB{ 255, 248, 220 }
+/*  Whites                                */
+mistyrose            :: RGB{ 255, 228, 225 }
+antiquewhite         :: RGB{ 250, 235, 215 }
+linen                :: RGB{ 250, 240, 230 }
+beige                :: RGB{ 245, 245, 220 }
+whitesmoke           :: RGB{ 245, 245, 245 }
+lavenderblush        :: RGB{ 255, 240, 245 }
+oldlace              :: RGB{ 253, 245, 230 }
+aliceblue            :: RGB{ 240, 248, 255 }
+seashell             :: RGB{ 255, 245, 238 }
+ghostwhite           :: RGB{ 248, 248, 255 }
+honeydew             :: RGB{ 240, 255, 240 }
+floralwhite          :: RGB{ 255, 250, 240 }
+azure                :: RGB{ 240, 255, 255 }
+mintcream            :: RGB{ 245, 255, 250 }
+snow                 :: RGB{ 255, 250, 250 }
+ivory                :: RGB{ 255, 255, 240 }
+white                :: RGB{ 255, 255, 255 }
+/*  Grays                                 */
+black                :: RGB{ 000, 000, 000 }
+darkslategray        :: RGB{ 047, 079, 079 }
+dimgray              :: RGB{ 105, 105, 105 }
+slategray            :: RGB{ 112, 128, 144 }
+gray                 :: RGB{ 128, 128, 128 }
+lightslategray       :: RGB{ 119, 136, 153 }
+darkgray             :: RGB{ 169, 169, 169 }
+silver               :: RGB{ 192, 192, 192 }
+lightgray            :: RGB{ 211, 211, 211 }
+gainsboro            :: RGB{ 220, 220, 220 }
 
 @(rodata)
 color := [Color]RGB {
 	//	Pinks
-	.lightpink            = lightpink,
-	.pink                 = pink,
-	.crimson              = crimson,
-	.lavenderblush        = lavenderblush,
+	.mediumvioletred      = mediumvioletred,
+	.deeppink             = deeppink,
 	.palevioletred        = palevioletred,
 	.hotpink              = hotpink,
-	.deeppink             = deeppink,
-	.mediumvioletred      = mediumvioletred,
-	.orchid               = orchid,
-	.thistle              = thistle,
-	.plum                 = plum,
-	.violet               = violet,
-	.magenta              = magenta,
-	.fuchsia              = fuchsia,
+	.lightpink            = lightpink,
+	.pink                 = pink,
 	//	Purples
-	.darkmagenta          = darkmagenta,
-	.purple               = purple,
-	.mediumorchid         = mediumorchid,
-	.darkviolet           = darkviolet,
-	.darkorchid           = darkorchid,
 	.indigo               = indigo,
-	.blueviolet           = blueviolet,
-	.mediumpurple         = mediumpurple,
-	//	Blues
-	.mediumslateblue      = mediumslateblue,
-	.slateblue            = slateblue,
+	.rebeccapurple        = rebeccapurple,
+	.purple               = purple,
+	.darkmagenta          = darkmagenta,
+	.darkviolet           = darkviolet,
 	.darkslateblue        = darkslateblue,
-	.ghostwhite           = ghostwhite,
+	.blueviolet           = blueviolet,
+	.darkorchid           = darkorchid,
+	.fuchsia              = fuchsia,
+	.magenta              = magenta,
+	.slateblue            = slateblue,
+	.mediumslateblue      = mediumslateblue,
+	.mediumorchid         = mediumorchid,
+	.mediumpurple         = mediumpurple,
+	.orchid               = orchid,
+	.violet               = violet,
+	.plum                 = plum,
+	.thistle              = thistle,
 	.lavender             = lavender,
-	.blue                 = blue,
-	.mediumblue           = mediumblue,
-	.darkblue             = darkblue,
-	.navy                 = navy,
+	//	Blues
 	.midnightblue         = midnightblue,
+	.navy                 = navy,
+	.darkblue             = darkblue,
+	.mediumblue           = mediumblue,
+	.blue                 = blue,
 	.royalblue            = royalblue,
-	.cornflowerblue       = cornflowerblue,
-	.lightsteelblue       = lightsteelblue,
-	.lightslategray       = lightslategray,
-	.slategray            = slategray,
-	.dodgerblue           = dodgerblue,
-	.aliceblue            = aliceblue,
 	.steelblue            = steelblue,
-	.lightskyblue         = lightskyblue,
-	.skyblue              = skyblue,
+	.dodgerblue           = dodgerblue,
 	.deepskyblue          = deepskyblue,
+	.cornflowerblue       = cornflowerblue,
+	.skyblue              = skyblue,
+	.lightskyblue         = lightskyblue,
+	.lightsteelblue       = lightsteelblue,
 	.lightblue            = lightblue,
 	.powderblue           = powderblue,
+	//	Cyans
+	.teal                 = teal,
+	.darkcyan             = darkcyan,
+	.lightseagreen        = lightseagreen,
 	.cadetblue            = cadetblue,
 	.darkturquoise        = darkturquoise,
-	.azure                = azure,
-	.lightcyan            = lightcyan,
-	.paleturquoise        = paleturquoise,
+	.mediumturquoise      = mediumturquoise,
+	.turquoise            = turquoise,
 	.aqua                 = aqua,
 	.cyan                 = cyan,
-	.darkcyan             = darkcyan,
-	.teal                 = teal,
-	.darkslategray        = darkslategray,
-	//	Greens
-	.mediumturquoise      = mediumturquoise,
-	.lightseagreen        = lightseagreen,
-	.turquoise            = turquoise,
 	.aquamarine           = aquamarine,
-	.mediumaquamarine     = mediumaquamarine,
-	.mediumspringgreen    = mediumspringgreen,
-	.mintcream            = mintcream,
-	.springgreen          = springgreen,
-	.mediumseagreen       = mediumseagreen,
+	.paleturquoise        = paleturquoise,
+	.lightcyan            = lightcyan,
+	//	Greens
+	.darkgreen            = darkgreen,
+	.green                = green,
+	.darkolivegreen       = darkolivegreen,
+	.forestgreen          = forestgreen,
 	.seagreen             = seagreen,
-	.honeydew             = honeydew,
-	.darkseagreen         = darkseagreen,
-	.palegreen            = palegreen,
-	.lightgreen           = lightgreen,
+	.olive                = olive,
+	.olivedrab            = olivedrab,
+	.mediumseagreen       = mediumseagreen,
 	.limegreen            = limegreen,
 	.lime                 = lime,
-	.forestgreen          = forestgreen,
-	.green                = green,
-	.darkgreen            = darkgreen,
+	.springgreen          = springgreen,
+	.mediumspringgreen    = mediumspringgreen,
+	.darkseagreen         = darkseagreen,
+	.mediumaquamarine     = mediumaquamarine,
+	.yellowgreen          = yellowgreen,
 	.lawngreen            = lawngreen,
 	.chartreuse           = chartreuse,
+	.lightgreen           = lightgreen,
 	.greenyellow          = greenyellow,
-	.darkolivegreen       = darkolivegreen,
-	.yellowgreen          = yellowgreen,
-	.olivedrab            = olivedrab,
+	.palegreen            = palegreen,
 	//	Yellows
-	.ivory                = ivory,
-	.beige                = beige,
-	.lightyellow          = lightyellow,
-	.lightgoldenrodyellow = lightgoldenrodyellow,
-	.yellow               = yellow,
-	.olive                = olive,
 	.darkkhaki            = darkkhaki,
-	.palegoldenrod        = palegoldenrod,
-	.lemonchiffon         = lemonchiffon,
-	.khaki                = khaki,
 	.gold                 = gold,
-	.cornsilk             = cornsilk,
-	.goldenrod            = goldenrod,
-	.darkgoldenrod        = darkgoldenrod,
-	.floralwhite          = floralwhite,
-	.oldlace              = oldlace,
-	.wheat                = wheat,
-	//	Oranges
-	.orange               = orange,
+	.khaki                = khaki,
+	.peachpuff            = peachpuff,
+	.yellow               = yellow,
+	.palegoldenrod        = palegoldenrod,
 	.moccasin             = moccasin,
 	.papayawhip           = papayawhip,
-	.blanchedalmond       = blanchedalmond,
-	.navajowhite          = navajowhite,
-	.antiquewhite         = antiquewhite,
+	.lightgoldenrodyellow = lightgoldenrodyellow,
+	.lemonchiffon         = lemonchiffon,
+	.lightyellow          = lightyellow,
+	//	Oranges
+	.orangered            = orangered,
+	.tomato               = tomato,
+	.darkorange           = darkorange,
+	.coral                = coral,
+	.orange               = orange,
+	//	Reds
+	.darkred              = darkred,
+	.red                  = red,
+	.firebrick            = firebrick,
+	.crimson              = crimson,
+	.indianred            = indianred,
+	.lightcoral           = lightcoral,
+	.salmon               = salmon,
+	.darksalmon           = darksalmon,
+	.lightsalmon          = lightsalmon,
+	//	Browns
+	.maroon               = maroon,
+	.brown                = brown,
+	.saddlebrown          = saddlebrown,
+	.sienna               = sienna,
+	.chocolate            = chocolate,
+	.darkgoldenrod        = darkgoldenrod,
+	.peru                 = peru,
+	.rosybrown            = rosybrown,
+	.goldenrod            = goldenrod,
+	.sandybrown           = sandybrown,
 	.tan                  = tan,
 	.burlywood            = burlywood,
-	.darkorange           = darkorange,
+	.wheat                = wheat,
+	.navajowhite          = navajowhite,
 	.bisque               = bisque,
-	.linen                = linen,
-	.peru                 = peru,
-	.peachpuff            = peachpuff,
-	.sandybrown           = sandybrown,
-	.chocolate            = chocolate,
-	.saddlebrown          = saddlebrown,
-	.seashell             = seashell,
-	.sienna               = sienna,
-	//	Reds
-	.lightsalmon          = lightsalmon,
-	.coral                = coral,
-	.orangered            = orangered,
-	.darksalmon           = darksalmon,
-	.tomato               = tomato,
-	.salmon               = salmon,
+	.blanchedalmond       = blanchedalmond,
+	.cornsilk             = cornsilk,
+	//	Whites
 	.mistyrose            = mistyrose,
-	.lightcoral           = lightcoral,
-	.snow                 = snow,
-	.rosybrown            = rosybrown,
-	.indianred            = indianred,
-	.red                  = red,
-	.brown                = brown,
-	.firebrick            = firebrick,
-	.darkred              = darkred,
-	.maroon               = maroon,
-	//	Grayscale
-	.white                = white,
+	.antiquewhite         = antiquewhite,
+	.linen                = linen,
+	.beige                = beige,
 	.whitesmoke           = whitesmoke,
-	.gainsboro            = gainsboro,
-	.lightgray            = lightgray,
-	.silver               = silver,
-	.darkgray             = darkgray,
-	.gray                 = gray,
-	.dimgray              = dimgray,
+	.lavenderblush        = lavenderblush,
+	.oldlace              = oldlace,
+	.aliceblue            = aliceblue,
+	.seashell             = seashell,
+	.ghostwhite           = ghostwhite,
+	.honeydew             = honeydew,
+	.floralwhite          = floralwhite,
+	.azure                = azure,
+	.mintcream            = mintcream,
+	.snow                 = snow,
+	.ivory                = ivory,
+	.white                = white,
+	//	Grays
 	.black                = black,
+	.darkslategray        = darkslategray,
+	.dimgray              = dimgray,
+	.slategray            = slategray,
+	.gray                 = gray,
+	.lightslategray       = lightslategray,
+	.darkgray             = darkgray,
+	.silver               = silver,
+	.lightgray            = lightgray,
+	.gainsboro            = gainsboro,
 }
 
 Color :: enum u8 {
 	//	Pinks
-	lightpink, // 0
-	pink,
-	crimson,
-	lavenderblush,
+	mediumvioletred, // 0
+	deeppink,
 	palevioletred,
 	hotpink,
-	deeppink,
-	mediumvioletred,
-	orchid,
-	thistle,
-	plum,
-	violet,
-	magenta,
-	fuchsia,
+	lightpink,
+	pink,
 	//	Purples
-	darkmagenta, // 14
+	indigo, // 6
+	rebeccapurple,
 	purple,
-	mediumorchid,
+	darkmagenta,
 	darkviolet,
-	darkorchid,
-	indigo,
-	blueviolet,
-	mediumpurple,
-	//	Blues
-	mediumslateblue, // 22
-	slateblue,
 	darkslateblue,
-	ghostwhite,
+	blueviolet,
+	darkorchid,
+	fuchsia,
+	magenta,
+	slateblue,
+	mediumslateblue,
+	mediumorchid,
+	mediumpurple,
+	orchid,
+	violet,
+	plum,
+	thistle,
 	lavender,
-	blue,
-	mediumblue,
-	darkblue,
+	//	Blues
+	midnightblue, // 25
 	navy,
-	midnightblue,
+	darkblue,
+	mediumblue,
+	blue,
 	royalblue,
-	cornflowerblue,
-	lightsteelblue,
-	lightslategray,
-	slategray,
-	dodgerblue,
-	aliceblue,
 	steelblue,
-	lightskyblue,
-	skyblue,
+	dodgerblue,
 	deepskyblue,
+	cornflowerblue,
+	skyblue,
+	lightskyblue,
+	lightsteelblue,
 	lightblue,
 	powderblue,
+	//	Cyans
+	teal, // 40
+	darkcyan,
+	lightseagreen,
 	cadetblue,
 	darkturquoise,
-	azure,
-	lightcyan,
-	paleturquoise,
+	mediumturquoise,
+	turquoise,
 	aqua,
 	cyan,
-	darkcyan,
-	teal,
-	darkslategray,
-	//	Greens
-	mediumturquoise, // 55
-	lightseagreen,
-	turquoise,
 	aquamarine,
-	mediumaquamarine,
-	mediumspringgreen,
-	mintcream,
-	springgreen,
-	mediumseagreen,
+	paleturquoise,
+	lightcyan,
+	//	Greens
+	darkgreen, // 52
+	green,
+	darkolivegreen,
+	forestgreen,
 	seagreen,
-	honeydew,
-	darkseagreen,
-	palegreen,
-	lightgreen,
+	olive,
+	olivedrab,
+	mediumseagreen,
 	limegreen,
 	lime,
-	forestgreen,
-	green,
-	darkgreen,
+	springgreen,
+	mediumspringgreen,
+	darkseagreen,
+	mediumaquamarine,
+	yellowgreen,
 	lawngreen,
 	chartreuse,
+	lightgreen,
 	greenyellow,
-	darkolivegreen,
-	yellowgreen,
-	olivedrab,
+	palegreen,
 	//	Yellows
-	ivory, // 80
-	beige,
-	lightyellow,
-	lightgoldenrodyellow,
-	yellow,
-	olive,
-	darkkhaki,
-	palegoldenrod,
-	lemonchiffon,
-	khaki,
+	darkkhaki, // 72
 	gold,
-	cornsilk,
-	goldenrod,
-	darkgoldenrod,
-	floralwhite,
-	oldlace,
-	wheat,
-	//Oranges
-	orange, // 97
+	khaki,
+	peachpuff,
+	yellow,
+	palegoldenrod,
 	moccasin,
 	papayawhip,
-	blanchedalmond,
-	navajowhite,
-	antiquewhite,
+	lightgoldenrodyellow,
+	lemonchiffon,
+	lightyellow,
+	//	Oranges
+	orangered, // 83
+	tomato,
+	darkorange,
+	coral,
+	orange,
+	//	Reds
+	darkred, // 88
+	red,
+	firebrick,
+	crimson,
+	indianred,
+	lightcoral,
+	salmon,
+	darksalmon,
+	lightsalmon,
+	//	Browns
+	maroon, // 97
+	brown,
+	saddlebrown,
+	sienna,
+	chocolate,
+	darkgoldenrod,
+	peru,
+	rosybrown,
+	goldenrod,
+	sandybrown,
 	tan,
 	burlywood,
-	darkorange,
+	wheat,
+	navajowhite,
 	bisque,
+	blanchedalmond,
+	cornsilk,
+	//	Whites
+	mistyrose, // 114
+	antiquewhite,
 	linen,
-	peru,
-	peachpuff,
-	sandybrown,
-	chocolate,
-	saddlebrown,
-	seashell,
-	sienna,
-	//	Reds
-	lightsalmon, // 115
-	coral,
-	orangered,
-	darksalmon,
-	tomato,
-	salmon,
-	mistyrose,
-	lightcoral,
-	snow,
-	rosybrown,
-	indianred,
-	red,
-	brown,
-	firebrick,
-	darkred,
-	maroon,
-	//	Grayscale
-	white, // 131
+	beige,
 	whitesmoke,
-	gainsboro,
-	lightgray,
-	silver,
-	darkgray,
-	gray,
+	lavenderblush,
+	oldlace,
+	aliceblue,
+	seashell,
+	ghostwhite,
+	honeydew,
+	floralwhite,
+	azure,
+	mintcream,
+	snow,
+	ivory,
+	white,
+	//	Grays
+	black, // 131
+	darkslategray,
 	dimgray,
-	black, // 139
+	slategray,
+	gray,
+	lightslategray,
+	darkgray,
+	silver,
+	lightgray,
+	gainsboro, // 140
 }

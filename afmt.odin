@@ -8,6 +8,7 @@ import "core:terminal"
 import "core:terminal/ansi"
 import "base:intrinsics"
 import "core:unicode/utf8"
+import "core:reflect"
 
 
 //	Aliases of all the below structures to help reduce syntax
@@ -37,42 +38,42 @@ RGB :: [3]u8
 
 //	Attributes - independent of ANSI variants
 Attribute :: enum u8 {
-	NONE                    = 0,
-	BOLD                    = 1,
-	FAINT                   = 2,
-	ITALIC                  = 3,
-	UNDERLINE               = 4,
-	BLINK_SLOW              = 5,
-	BLINK_RAPID             = 6, // Not widely supported.
-	INVERT                  = 7, // Also known as reverse video.
-	HIDE                    = 8, // Not widely supported.
-	STRIKE                  = 9,
-	FONT_PRIMARY            = 10,
-	FONT_ALT1               = 11,
-	FONT_ALT2               = 12,
-	FONT_ALT3               = 13,
-	FONT_ALT4               = 14,
-	FONT_ALT5               = 15,
-	FONT_ALT6               = 16,
-	FONT_ALT7               = 17,
-	FONT_ALT8               = 18,
-	FONT_ALT9               = 19,
-	FONT_FRAKTUR            = 20, // Rarely supported.
-	UNDERLINE_DOUBLE        = 21, // May be interpreted as "disable bold."
-	NO_BOLD_FAINT           = 22,
-	NO_ITALIC_BLACKLETTER   = 23,
-	NO_UNDERLINE            = 24,
-	NO_BLINK                = 25,
-	PROPORTIONAL_SPACING    = 26,
-	NO_REVERSE              = 27,
-	NO_HIDE                 = 28,
-	NO_STRIKE               = 29,
-	NO_PROPORTIONAL_SPACING = 50,
-	FRAMED                  = 51, // Not widely supported.
-	ENCIRCLED               = 52, // Not widely supported.
-	OVERLINED               = 53,
-	NO_FRAME_ENCIRCLE       = 54,
-	NO_OVERLINE             = 55,
+	none                    = 0,
+	bold                    = 1,
+	faint                   = 2,
+	italic                  = 3,
+	underline               = 4,
+	blink_slow              = 5,
+	blink_rapid             = 6, // Not widely supported.
+	invert                  = 7, // Also known as reverse video.
+	hide                    = 8, // Not widely supported.
+	strike                  = 9,
+	font_primary            = 10,
+	font_alt1               = 11,
+	font_alt2               = 12,
+	font_alt3               = 13,
+	font_alt4               = 14,
+	font_alt5               = 15,
+	font_alt6               = 16,
+	font_alt7               = 17,
+	font_alt8               = 18,
+	font_alt9               = 19,
+	font_fraktur            = 20, // Rarely supported.
+	underline_double        = 21, // May be interpreted as "disable bold."
+	no_bold_faint           = 22,
+	no_italic_blackletter   = 23,
+	no_underline            = 24,
+	no_blink                = 25,
+	proportional_spacing    = 26,
+	no_reverse              = 27,
+	no_hide                 = 28,
+	no_strike               = 29,
+	no_proportional_spacing = 50,
+	framed                  = 51, // Not widely supported.
+	encircled               = 52, // Not widely supported.
+	overlined               = 53,
+	no_frame_encircle       = 54,
+	no_overline             = 55,
 }
 
 //	Union variants of ANSI
@@ -91,29 +92,36 @@ ANSI3 :: struct {
 }
 //	Foreground 3 Bit Colors
 FGColor3 :: enum u8 {
-	NONE       = 0,
-	FG_BLACK   = 30,
-	FG_RED     = 31,
-	FG_GREEN   = 32,
-	FG_YELLOW  = 33,
-	FG_BLUE    = 34,
-	FG_MAGENTA = 35,
-	FG_CYAN    = 36,
-	FG_WHITE   = 37,
-	FG_DEFAULT = 39,
+	none    = 0,
+	black   = 30,
+	red     = 31,
+	green   = 32,
+	yellow  = 33,
+	blue    = 34,
+	magenta = 35,
+	cyan    = 36,
+	white   = 37,
+	default = 39,
 }
 //	Background 3 Bit Colors
 BGColor3 :: enum u8 {
-	NONE       = 0,
-	BG_BLACK   = 40,
-	BG_RED     = 41,
-	BG_GREEN   = 42,
-	BG_YELLOW  = 43,
-	BG_BLUE    = 44,
-	BG_MAGENTA = 45,
-	BG_CYAN    = 46,
-	BG_WHITE   = 47,
-	BG_DEFAULT = 49,
+	none    = 0,
+	black   = 40,
+	red     = 41,
+	green   = 42,
+	yellow  = 43,
+	blue    = 44,
+	magenta = 45,
+	cyan    = 46,
+	white   = 47,
+	default = 49,
+}
+
+//	ANSI3 struct creation procedure
+a3 :: ansi3
+//	ANSI3 struct creation procedure
+ansi3 :: proc(fg: FGColor3, bg: BGColor3, at: bit_set[Attribute] = nil) -> ANSI3 {
+	return {fg, bg, at}
 }
 
 //	4 Bit Color Printing - 16 colors
@@ -124,52 +132,67 @@ ANSI4 :: struct {
 }
 //	Foreground 4 Bit Colors
 FGColor4 :: enum u8 {
-	NONE              = 0,
-	FG_BLACK          = 30,
-	FG_RED            = 31,
-	FG_GREEN          = 32,
-	FG_YELLOW         = 33,
-	FG_BLUE           = 34,
-	FG_MAGENTA        = 35,
-	FG_CYAN           = 36,
-	FG_WHITE          = 37,
-	FG_DEFAULT        = 39,
-	FG_BRIGHT_BLACK   = 90, // Also known as grey.
-	FG_BRIGHT_RED     = 91,
-	FG_BRIGHT_GREEN   = 92,
-	FG_BRIGHT_YELLOW  = 93,
-	FG_BRIGHT_BLUE    = 94,
-	FG_BRIGHT_MAGENTA = 95,
-	FG_BRIGHT_CYAN    = 96,
-	FG_BRIGHT_WHITE   = 97,
+	none           = 0,
+	black          = 30,
+	red            = 31,
+	green          = 32,
+	yellow         = 33,
+	blue           = 34,
+	magenta        = 35,
+	cyan           = 36,
+	white          = 37,
+	default        = 39,
+	bright_black   = 90, // Also known as grey.
+	bright_red     = 91,
+	bright_green   = 92,
+	bright_yellow  = 93,
+	bright_blue    = 94,
+	bright_magenta = 95,
+	bright_cyan    = 96,
+	bright_white   = 97,
 }
 //	Background 4 Bit Colors
 BGColor4 :: enum u8 {
-	NONE              = 0,
-	BG_BLACK          = 40,
-	BG_RED            = 41,
-	BG_GREEN          = 42,
-	BG_YELLOW         = 43,
-	BG_BLUE           = 44,
-	BG_MAGENTA        = 45,
-	BG_CYAN           = 46,
-	BG_WHITE          = 47,
-	BG_DEFAULT        = 49,
-	BG_BRIGHT_BLACK   = 100, // Also known as grey.
-	BG_BRIGHT_RED     = 101,
-	BG_BRIGHT_GREEN   = 102,
-	BG_BRIGHT_YELLOW  = 103,
-	BG_BRIGHT_BLUE    = 104,
-	BG_BRIGHT_MAGENTA = 105,
-	BG_BRIGHT_CYAN    = 106,
-	BG_BRIGHT_WHITE   = 107,
+	none           = 0,
+	black          = 40,
+	red            = 41,
+	green          = 42,
+	yellow         = 43,
+	blue           = 44,
+	magenta        = 45,
+	cyan           = 46,
+	white          = 47,
+	default        = 49,
+	bright_black   = 100, // Also known as grey.
+	bright_red     = 101,
+	bright_green   = 102,
+	bright_yellow  = 103,
+	bright_blue    = 104,
+	bright_magenta = 105,
+	bright_cyan    = 106,
+	bright_white   = 107,
 }
+
+//	ANSI4 struct creation procedure
+a4 :: ansi4
+//	ANSI4 struct creation procedure
+ansi4 :: proc(fg: FGColor4, bg: BGColor4, at: bit_set[Attribute] = nil) -> ANSI4 {
+	return {fg, bg, at}
+}
+
 
 //	8 Bit Color Printing - 256 colors
 ANSI8 :: struct {
 	fg: Maybe(u8),          // foreground - u8 or can be nil
 	bg: Maybe(u8),          // background - u8 or can be nil
 	at: bit_set[Attribute], // attributes
+}
+
+//	ANSI8 struct creation procedure
+a8 :: ansi8
+//	ANSI8 struct creation procedure
+ansi8 :: proc(fg: Maybe(u8), bg: Maybe(u8), at: bit_set[Attribute] = nil) -> ANSI8 {
+	return {fg, bg, at}
 }
 
 //	24 Bit (TrueColor) Color Printing - 16.7 million colors
@@ -179,6 +202,16 @@ ANSI24 :: struct {
 	at: bit_set[Attribute], // attributes
 }
 
+//	ANSI24 struct creation procedure
+a24 :: ansi24
+//	ANSI24 struct creation procedure
+ansi24 :: proc(fg: union{RGB, Color}, bg: union{RGB, Color}, at: bit_set[Attribute] = nil) -> ANSI24 {
+	return {
+		fg != nil ? fg.(RGB) or_else color[fg.(Color)] : nil,
+		bg != nil ? bg.(RGB) or_else color[bg.(Color)] : nil,
+		at,
+	}
+}
 
 //	ANSI Control Sequence formatter
 //
@@ -192,11 +225,11 @@ afmt :: proc(afmt: ANSI, fmt: string) -> string {
 	acs: string // ANSI Control Sequence
 
 	// Delimitor - Specialized for internal use only - assumes acs is also in args[0]
-	delimit :: proc(acs: ^string, args: ..any) {
+	delimit :: proc(acs: ^string, items: ..any) {
 		if len(acs^) == 0 { // exclude acs when it is empty - prevent extra semi-colon
-			acs^ = cfmt.tprint(..args[1:], sep = ";")
+			acs^ = cfmt.tprint(..items[1:], sep = ";")
 		} else { // include acs when it is not empty
-			acs^ = cfmt.tprint(..args, sep = ";")
+			acs^ = cfmt.tprint(..items, sep = ";")
 		}
 	}
 
@@ -208,7 +241,7 @@ afmt :: proc(afmt: ANSI, fmt: string) -> string {
 	case ANSI8:  attributes = a.at
 	case ANSI24: attributes = a.at
 	}
-	if .NONE not_in attributes {
+	if .none not_in attributes {
 		for a in attributes {
 			delimit(&acs, acs, u8(a))
 		}
@@ -220,7 +253,6 @@ afmt :: proc(afmt: ANSI, fmt: string) -> string {
 	//	..\core\terminal\terminal_windows.odin sets ENABLE_VIRTUAL_TERMINAL_PROCESSING and checks for success
 	//	Then it arbitrarily sets .Four_Bit, but Windows supports .True_Color out of the box
 	//	for base and latest versions of Powershell and base version of cmd when ENABLE_VIRTUAL_TERMINAL_PROCESSING is set
-	//	This takes advantage of the ENABLE_VIRTUAL_TERMINAL_PROCESSING being set, and then redirects to correct depth
 	//	For Unix:
 	//	Several terminal emulators are set to .Three_Bit if a case statement is reached, but may not be acurate.
 
@@ -228,18 +260,18 @@ afmt :: proc(afmt: ANSI, fmt: string) -> string {
 	if terminal.color_enabled {
 		switch a in afmt {
 		case ANSI3: /* if terminal.color_depth >= .Three_Bit */ {
-				if a.fg != .NONE {
+				if a.fg != .none {
 					delimit(&acs, acs, u8(a.fg))
 				}
-				if a.bg != .NONE {
+				if a.bg != .none {
 					delimit(&acs, acs, u8(a.bg))
 				}
 			}
 		case ANSI4: /* if terminal.color_depth >= .Four_Bit */ {
-				if a.fg != .NONE {
+				if a.fg != .none {
 					delimit(&acs, acs, u8(a.fg))
 				}
-				if a.bg != .NONE {
+				if a.bg != .none {
 					delimit(&acs, acs, u8(a.bg))
 				}
 			}
@@ -263,103 +295,19 @@ afmt :: proc(afmt: ANSI, fmt: string) -> string {
 	}
 
 	return len(acs) > 0 ? cfmt.tprint(ansi.CSI, acs, ansi.SGR, fmt, ansi.CSI, ansi.RESET, ansi.SGR, sep = "") : fmt
-
 }
 
 
 //
-//	Parsing procedures and structures for afmt to support input in the form of:
+//	Parsing procedures afmt to support input in the form of:
 //	- 4bit  -> "-f[fg_color] -b[bg_color] -a[attribute,attribute]"
 //	- 8bit  -> "-f[255] -b[0] -a[attribute,attribute]"
 //	- 24bit -> "-f[255,0,0] -b[0,0,0] -a[attribute,attribute]"
+//	- 24bit -> "-f[#FF0000] -b[#FFFF00] -a[attribute,attribute]"
+//	- 24bit -> "-f[#crimson] -b[#limegreen] -a[attribute,attribute]"
 //
 
 
-//	Attribute to string look-up-table
-//	Enforcing lowercase to avoid regular use of to_upper or to_lower
-@(rodata)
-attribute := #sparse [Attribute]string {
-	.NONE                    = "none",
-	.BOLD                    = "bold",
-	.FAINT                   = "faint",
-	.ITALIC                  = "italic",
-	.UNDERLINE               = "underline",
-	.BLINK_SLOW              = "blink_slow",
-	.BLINK_RAPID             = "blink_rapid",
-	.INVERT                  = "invert",
-	.HIDE                    = "hide",
-	.STRIKE                  = "strike",
-	.FONT_PRIMARY            = "font_primary",
-	.FONT_ALT1               = "font_alt1",
-	.FONT_ALT2               = "font_alt2",
-	.FONT_ALT3               = "font_alt3",
-	.FONT_ALT4               = "font_alt4",
-	.FONT_ALT5               = "font_alt5",
-	.FONT_ALT6               = "font_alt6",
-	.FONT_ALT7               = "font_alt7",
-	.FONT_ALT8               = "font_alt8",
-	.FONT_ALT9               = "font_alt9",
-	.FONT_FRAKTUR            = "font_fraktur",            // Rarely supported.
-	.UNDERLINE_DOUBLE        = "underline_double",        // May be interpreted as "disable bold."
-	.NO_BOLD_FAINT           = "no_bold_faint",
-	.NO_ITALIC_BLACKLETTER   = "no_italic_blackletter",
-	.NO_UNDERLINE            = "no_underline",
-	.NO_BLINK                = "no_blink",
-	.PROPORTIONAL_SPACING    = "proportional_spacing",
-	.NO_REVERSE              = "no_reverse",
-	.NO_HIDE                 = "no_hide",
-	.NO_STRIKE               = "no_strike",
-	.NO_PROPORTIONAL_SPACING = "no_proportional_spacing",
-	.FRAMED                  = "framed",                  // Not widely supported.
-	.ENCIRCLED               = "encircled",               // Not widely supported.
-	.OVERLINED               = "overlined",
-	.NO_FRAME_ENCIRCLE       = "no_frame_encircle",
-	.NO_OVERLINE             = "no_overline",
-}
-//	Foreground 4 Bit Color to string look-up-table 
-//	Enforcing lowercase to avoid regular use of to_upper or to_lower
-@(rodata)
-fgcolor4 := #partial #sparse [FGColor4]string {
-	.FG_BLACK          = "black",
-	.FG_RED            = "red",
-	.FG_GREEN          = "green",
-	.FG_YELLOW         = "yellow",
-	.FG_BLUE           = "blue",
-	.FG_MAGENTA        = "magenta",
-	.FG_CYAN           = "cyan",
-	.FG_WHITE          = "white",
-	.FG_DEFAULT        = "default",
-	.FG_BRIGHT_BLACK   = "bright_black",
-	.FG_BRIGHT_RED     = "bright_red",
-	.FG_BRIGHT_GREEN   = "bright_green",
-	.FG_BRIGHT_YELLOW  = "bright_yellow",
-	.FG_BRIGHT_BLUE    = "bright_blue",
-	.FG_BRIGHT_MAGENTA = "bright_magenta",
-	.FG_BRIGHT_CYAN    = "bright_cyan",
-	.FG_BRIGHT_WHITE   = "bright_white",
-}
-//	Background 4 Bit Color to string look-up-table
-//	Enforcing lowercase to avoid regular use of to_upper or to_lower
-@(rodata)
-bgcolor4 := #partial #sparse [BGColor4]string {
-	.BG_BLACK          = "black",
-	.BG_RED            = "red",
-	.BG_GREEN          = "green",
-	.BG_YELLOW         = "yellow",
-	.BG_BLUE           = "blue",
-	.BG_MAGENTA        = "magenta",
-	.BG_CYAN           = "cyan",
-	.BG_WHITE          = "white",
-	.BG_DEFAULT        = "default",
-	.BG_BRIGHT_BLACK   = "bright_black",
-	.BG_BRIGHT_RED     = "bright_red",
-	.BG_BRIGHT_GREEN   = "bright_green",
-	.BG_BRIGHT_YELLOW  = "bright_yellow",
-	.BG_BRIGHT_BLUE    = "bright_blue",
-	.BG_BRIGHT_MAGENTA = "bright_magenta",
-	.BG_BRIGHT_CYAN    = "bright_cyan",
-	.BG_BRIGHT_WHITE   = "bright_white",
-}
 //	Parses an input string and builds an ANSI struct.
 //
 //	All parsing done with slicing and no dynamic allocations.
@@ -445,17 +393,11 @@ afmt_parse :: proc(afmt: string) -> (af: ANSI) {
 
 //	Internal, but not private so can be used if needed/wanted
 //	Parse attribute list seperated by ',' and add to bit_set
-_parse_attributes :: proc(att: string) -> (aset: bit_set[Attribute]) {
-	at := att
-	for it in strings.split_iterator(&at, ",") {
-		if t := strings.trim_space(it); t != "" {
-			loop: for a, id in attribute {
-				if a != "" && a == t {
-					aset += {id}
-					break loop
-				}
-			}
-		}
+_parse_attributes :: proc(s: string) -> (aset: bit_set[Attribute]) {
+	s := s
+	for it in strings.split_iterator(&s, ",") {
+		at, ok := reflect.enum_from_name(Attribute, strings.trim_space(it))
+		if ok { aset += {at} }
 	}
 	return
 }
@@ -467,14 +409,8 @@ _parse_color_4bit :: proc { _parse_fgcolor4, _parse_bgcolor4 }
 //	Internal, but not private so can be used if needed/wanted
 //	Parse foreground 4bit color - matches string to fg_color_4bit := [FGColor4]string
 _parse_fgcolor4 :: proc(c: string, fg: ^FGColor4) -> (ok: bool) {
-	if c[0] != '#' {
-		loop: for f, id in fgcolor4 {
-			if f != "" && f == c {
-				fg^ = id
-				ok = true
-				break loop
-			}
-		}
+	if c[0] != '#' && c != "none" {
+		fg^, ok = reflect.enum_from_name(FGColor4, c)
 	}
 	return
 }
@@ -482,14 +418,8 @@ _parse_fgcolor4 :: proc(c: string, fg: ^FGColor4) -> (ok: bool) {
 //	Internal, but not private so can be used if needed/wanted
 //	Parse background 4bit color - matches string to bgcolor4 := [BGColor4]string
 _parse_bgcolor4 :: proc(c: string, bg: ^BGColor4) -> (ok: bool) {
-	if c[0] != '#' {
-		loop: for b, id in bgcolor4 {
-			if b != "" && b == c {
-				bg^ = id
-				ok = true
-				break loop
-			}
-		}
+	if c[0] != '#' && c != "none" {
+		bg^, ok = reflect.enum_from_name(BGColor4, c)
 	}
 	return	
 }
@@ -497,8 +427,8 @@ _parse_bgcolor4 :: proc(c: string, bg: ^BGColor4) -> (ok: bool) {
 //	Internal, but not private so can be used if needed/wanted
 //	Parse u8 color from string 0-255
 _parse_u8 :: proc(s: string) -> (u: Maybe(u8), ok: bool) {
-	n, nok := strconv.parse_u64(strings.trim_space(s))
-	ok = nok && n >= 0 && n <= 255
+	n := strconv.parse_u64(strings.trim_space(s)) or_return
+	ok = n >= 0 && n <= 255
 	if ok { u = u8(n) }
 	return
 }
@@ -521,13 +451,9 @@ _parse_hex :: proc(s: string) -> (rgb: Maybe(RGB), ok: bool) {
 //	string must be prefixed with #. i.e. #orchid
 _parse_colors :: proc(s: string) -> (rgb: Maybe(RGB), ok: bool) {
 	if len(s) > 2 && s[0] == '#' {
-		loop: for c, id in color {
-			if color_name_from_enum(id) == s[1:] {
-				rgb = c
-				ok = true
-				break loop
-			}
-		}
+		c: Color
+		c, ok = reflect.enum_from_name(Color, s[1:])
+		rgb = ok ? color[c] : nil
 	}
 	return
 }
@@ -539,7 +465,7 @@ _parse_rgb :: proc(s: string) -> (rgb: Maybe(RGB), ok: bool) {
 	c := s
 	maybe_u8: [3]Maybe(u8)
 	loop: for it in strings.split_iterator(&c, ",") {
-		if i > 2 { break loop}
+		if i > 2 { break loop }
 		cu64, cok := strconv.parse_u64(strings.trim_space(it))
 		cok = cok && cu64 >= 0 && cu64 <= 255 ? true : false
 		if cok { maybe_u8[i] = u8(cu64) }
@@ -1866,33 +1792,87 @@ rgb666_from_8bit :: proc(color: u8) -> (rgb666: [3]u8, valid: bool) #optional_ok
 	return rgb666, true
 }
 
+rgb_to_8bit :: proc(rgb: RGB) -> (color: u8) {
+	switch rgb {
+	case {000, 000, 000}: return 00
+	case {255, 000, 000}: return 01
+	case {000, 255, 000}: return 02
+	case {255, 255, 000}: return 03
+	case {000, 000, 255}: return 04
+	case {255, 000, 255}: return 05
+	case {000, 255, 255}: return 06
+	case {192, 192, 192}: return 07
+	case {128, 128, 128}: return 08
+	case {255, 128, 128}: return 09
+	case {128, 255, 128}: return 10
+	case {255, 255, 128}: return 11
+	case {128, 128, 255}: return 12
+	case {255, 128, 255}: return 13
+	case {128, 255, 255}: return 14
+	case {255, 255, 255}: return 15
+	case:
+		for color in u8(232)..=u8(255) {
+			if rgb == {008, 008, 008} + ((color - 232) * 10) {
+				return color
+			}
+		}
+	}
+	return rgb666_to_8bit(hsl_to_rgb666(hsl_from_rgb(rgb)))
+}
+
+rgb_from_8bit :: proc(color: u8)  -> (rgb: RGB) {
+	if color < 16 || color > 231 {
+		switch color {
+		case 00: return {000, 000, 000}
+		case 01: return {255, 000, 000}
+		case 02: return {000, 255, 000}
+		case 03: return {255, 255, 000}
+		case 04: return {000, 000, 255}
+		case 05: return {255, 000, 255}
+		case 06: return {000, 255, 255}
+		case 07: return {192, 192, 192}
+		case 08: return {128, 128, 128}
+		case 09: return {255, 128, 128}
+		case 10: return {128, 255, 128}
+		case 11: return {255, 255, 128}
+		case 12: return {128, 128, 255}
+		case 13: return {255, 128, 255}
+		case 14: return {128, 255, 255}
+		case 15: return {255, 255, 255}
+		case 232..=255:
+			return {008, 008, 008} + ((color - 232) * 10)
+		}
+	}
+	return hsl_to_rgb(hsl_from_rgb666(rgb666_from_8bit(color)))
+}
+
 //	Print to terminal 3Bit color test
 print_3bit_color_test :: proc(background := true) {
-	ansi := ANSI3{at = {.BOLD}}
-	if background { ansi.at += {.INVERT} }
+	ansi := ANSI3{at = {.bold}}
+	if background { ansi.at += {.invert} }
 
-	println("-a[bold]", "\n3Bit Colors")
+	println("-a[bold]", "3Bit Colors")
 	for c := 30; c <= 37; c += 1 {
-		ansi.fg = FGColor3(c)
-		// using fgcolor4 to get string name since they are the same in this case
-		printfln(" %-7s ", ansi, fgcolor4[FGColor4(c)])
+		ansi.fg  = FGColor3(c)
+		name, _ := reflect.enum_name_from_value(FGColor3(c))
+		printfln(" %-7s ", ansi, name)
 	}
-	println()
 }
 
 //	Print to terminal 4Bit color test
 print_4bit_color_test :: proc(background := true) {
-	ansi := ANSI4{at = {.BOLD}}
-	if background { ansi.at += {.INVERT} }
+	ansi := ANSI4{at = {.bold}}
+	if background { ansi.at += {.invert} }
 
-	println("-a[bold]", "\n4Bit Colors")
+	println("-a[bold]", "4Bit Colors")
 	for c := 30; c <= 37; c += 1 {
-		ansi.fg = FGColor4(c)
-		printf(" %-7s ", ansi, fgcolor4[ansi.fg])
+		ansi.fg  = FGColor4(c)
+		name, _ := reflect.enum_name_from_value(FGColor4(ansi.fg))
+		printf(" %-7s ", ansi, name)
 		ansi.fg = FGColor4(c + 60)
-		printfln(" %-14s ", ansi, fgcolor4[ansi.fg])
+		name, _ = reflect.enum_name_from_value(FGColor4(ansi.fg))
+		printfln(" %-14s ", ansi, name)
 	}
-	println()
 }
 
 //	Iterate rgb 6x6x6 color wheel by input factor and print bar
@@ -1912,10 +1892,10 @@ print_8bit_color_spectrum_bar :: proc(factor := f64(7.5)) {
 
 //	Print to terminal 8Bit color test
 print_8bit_color_test :: proc(background := true) {
-	ansi := ANSI8{at = {.BOLD}}
-	if background { ansi.at += {.INVERT} }
+	ansi := ANSI8{at = {.bold}}
+	if background { ansi.at += {.invert} }
 
-	println("-a[bold]", "\n8Bit System Colors")
+	println("-a[bold]", "8Bit System Colors")
 	for c in 0..=15 {
 		ansi.fg = u8(c)
 		_ = c == 7 || c == 15 ? printfln(" %3i ", ansi, c) : printf(" %3i ", ansi, c)
@@ -1945,7 +1925,7 @@ print_8bit_color_test :: proc(background := true) {
 		ansi.fg = g <= 243 ? u8(g) : 255 - (u8(g) - 244)
 		_ = g != 243 && g != 255 ? printf(" %3i ", ansi, ansi.fg) : printfln(" %3i ", ansi, ansi.fg)
 	}
-	println()
+
 }
 
 //	Iterate rgb color wheel by input factor and print bar
@@ -1984,7 +1964,7 @@ print_24bit_color_spectrum_bar :: proc(factor := f64(7.5)) {
 //	- afmt.print_24bit_color_test(16)
 //
 print_24bit_color_test :: proc(factor := u8(64)) {
-	ansi := ANSI24{fg = RGB{0,0,0}, at = {.INVERT}}
+	ansi := ANSI24{fg = RGB{0,0,0}, at = {.invert}}
 	rgb: [3]int //	have to use int, for loops will type overflow on u8 when max is 255
 	f := factor < 8 ? 8 : int(factor)
 
