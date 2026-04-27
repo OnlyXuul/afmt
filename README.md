@@ -3,7 +3,7 @@ Odin printing library with support for ANSI colors and attributes. The goal is t
 
 * afmt (a for ansi) is designed to be used as a collection.
 * Reference examples.odin for idiomatic patterns for each procedure in the library.
-## Odin License:
+## Odin Programming Language License:
 https://github.com/odin-lang/Odin/blob/master/LICENSE
 ## afmt License:
 This software is provided 'as-is', without any express or implied
