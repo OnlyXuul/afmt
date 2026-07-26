@@ -1811,9 +1811,9 @@ rgb_to_8bit :: proc(rgb: RGB) -> (color: u8) {
 	case {128, 255, 255}: return 14
 	case {255, 255, 255}: return 15
 	case:
-		for color in u8(232)..=u8(255) {
-			if rgb == {008, 008, 008} + ((color - 232) * 10) {
-				return color
+		for _color in u8(232)..=u8(255) {
+			if rgb == {008, 008, 008} + ((_color - 232) * 10) {
+				return _color
 			}
 		}
 	}

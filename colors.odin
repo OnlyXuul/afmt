@@ -73,7 +73,7 @@ print_color_guide :: proc(groups: bit_set[Color_Group] = {.all}, bg := true) {
 			}
 			cols[1].ansi = cols[0].ansi
 			cols[2].ansi = cols[0].ansi
-			name := tprintf(" %s", color_name_from_enum(id))
+			name = tprintf(" %s", color_name_from_enum(id))
 			rgb  := tprintf("%3i %3i %3i", c.r, c.g, c.b)
 			hsl_ := hsl(c)
 			hsls := tprintf("%6.2f %.2f %.2f", hsl_[0], hsl_[1], hsl_[2])
@@ -117,7 +117,7 @@ print_color_guide_ex :: proc(groups: bit_set[Color_Group] = {.all}, bg := true, 
 			}
 			cols[1].ansi = cols[0].ansi
 			cols[2].ansi = cols[0].ansi
-			name := tprintf(" %s", color_name_from_enum(id))
+			name = tprintf(" %s", color_name_from_enum(id))
 			rgb  := tprintf("%3i %3i %3i", c.r, c.g, c.b)
 			hsl_ := hsl(c)
 			hsls := tprintf("%6.2f %.2f %.2f", hsl_[0], hsl_[1], hsl_[2])
